@@ -1,5 +1,5 @@
 {
-	"name": "ploof",
+	"name": "@miketromba/ploof",
 	"version": "0.1.0",
 	"description": "AI asset generation CLI for OpenAI images today, designed for multi-provider creative workflows.",
 	"type": "module",

@@ -7,9 +7,9 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/ploof"><img src="https://img.shields.io/npm/v/ploof" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@miketromba/ploof"><img src="https://img.shields.io/npm/v/@miketromba/ploof" alt="npm version" /></a>
   <a href="https://github.com/miketromba/ploof/actions/workflows/ci.yml"><img src="https://github.com/miketromba/ploof/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/miketromba/ploof/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/ploof" alt="license" /></a>
+  <a href="https://github.com/miketromba/ploof/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@miketromba/ploof" alt="license" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version" />
 </p>
 
@@ -34,21 +34,22 @@ It is built for both developers and AI agents: predictable commands, parseable o
 ## Install
 
 ```bash
-npm install -g ploof
+bun i -g @miketromba/ploof
 ```
 
 Other package managers:
 
 ```bash
-pnpm add -g ploof
-yarn global add ploof
-bun install -g ploof
+npm install -g @miketromba/ploof
+pnpm add -g @miketromba/ploof
+yarn global add @miketromba/ploof
 ```
 
 Run without installing:
 
 ```bash
-npx ploof --help
+bunx @miketromba/ploof --help
+npx @miketromba/ploof --help
 ```
 
 ## Quick Start

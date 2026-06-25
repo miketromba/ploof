@@ -13,6 +13,6 @@ ploof learn
 
 Follow the instructions printed by `ploof learn`. That output is the canonical agent reference for the installed ploof version.
 
-If `ploof learn` is unavailable because the CLI is not installed, ask the user to install `ploof` first, then rerun `ploof learn`.
+If `ploof learn` is unavailable because the CLI is not installed, ask the user to install `@miketromba/ploof` first, then rerun `ploof learn`.
 
 Do not rely on this skill file for operational details. It is only a bootstrap adapter that points agents to `ploof learn`.

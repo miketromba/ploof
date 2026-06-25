@@ -8,7 +8,7 @@ The product should feel like a small, sharp developer tool: easy to run manually
 
 ## Naming
 
-- NPM package: `ploof`
+- NPM package: `@miketromba/ploof`
 - CLI binary: `ploof`
 - Brand/site target: `ploof.sh`
 - Config directory: `~/.ploof`
@@ -19,11 +19,15 @@ The product should feel like a small, sharp developer tool: easy to run manually
 Example:
 
 ```bash
-npm install -g ploof
+bun i -g @miketromba/ploof
 ploof login openai --api-key "$OPENAI_API_KEY"
 ploof image generate --prompt "Studio product photo" --out assets/hero.png
 ploof learn
 ```
+
+The unscoped npm name `ploof` was rejected by npm's similarity policy during
+publish because it is too close to `plop`. The canonical install package is
+therefore scoped, while the command remains the short `ploof` binary.
 
 ## Prior Art And Conventions
 
@@ -60,7 +64,7 @@ Conventions to preserve:
 6. Support dependency-aware batch manifests.
 7. Preserve provider-specific settings without requiring constant CLI redesign.
 8. Provide first-class AI agent support through `ploof learn` and an installable skill.
-9. Publish cleanly to npm as an unscoped package.
+9. Publish cleanly to npm with the short `ploof` binary.
 
 ## Initial Provider Scope
 
@@ -410,7 +414,7 @@ PLOOF_OPENAI_API_KEY=... bun test tests/e2e
 
 The initial complete implementation should include:
 
-- npm package scaffolding for `ploof`.
+- npm package scaffolding for `@miketromba/ploof`.
 - Build, test, typecheck, lint setup.
 - OpenAI auth profiles.
 - OpenAI image generate/edit.
