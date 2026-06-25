@@ -241,10 +241,31 @@ bun run lint
 bun run build
 ```
 
-Live OpenAI tests should be opt-in only:
+## Testing
+
+Run the full offline gate:
+
+```bash
+bun run lint
+bun run typecheck
+bun run test
+bun run build
+npm pack --dry-run
+```
+
+The default test suite includes mocked OpenAI end-to-end tests. Those tests run real `ploof` CLI commands against a local mock OpenAI server and verify generated files, edit uploads, sidecar metadata, and dependency-aware manifests without spending API credits.
+
+Live OpenAI tests are opt-in only:
 
 ```bash
 PLOOF_OPENAI_API_KEY=sk-... bun test tests/e2e
+```
+
+Optional live-test overrides:
+
+```bash
+PLOOF_OPENAI_LIVE_MODEL=gpt-image-1
+PLOOF_OPENAI_LIVE_SIZE=1024x1024
 ```
 
 ## License
