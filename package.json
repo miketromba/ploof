@@ -42,12 +42,12 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/miketromba/Ploof.git"
+		"url": "https://github.com/miketromba/ploof.git"
 	},
 	"bugs": {
-		"url": "https://github.com/miketromba/Ploof/issues"
+		"url": "https://github.com/miketromba/ploof/issues"
 	},
-	"homepage": "https://github.com/miketromba/Ploof#readme",
+	"homepage": "https://github.com/miketromba/ploof#readme",
 	"engines": {
 		"node": ">=18.0.0"
 	},

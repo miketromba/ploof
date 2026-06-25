@@ -8,8 +8,8 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/ploof"><img src="https://img.shields.io/npm/v/ploof" alt="npm version" /></a>
-  <a href="https://github.com/miketromba/Ploof/actions/workflows/ci.yml"><img src="https://github.com/miketromba/Ploof/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/miketromba/Ploof/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/ploof" alt="license" /></a>
+  <a href="https://github.com/miketromba/ploof/actions/workflows/ci.yml"><img src="https://github.com/miketromba/ploof/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/miketromba/ploof/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/ploof" alt="license" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version" />
 </p>
 
