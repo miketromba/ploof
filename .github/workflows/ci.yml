@@ -17,6 +17,7 @@ jobs:
         with:
           bun-version: latest
       - run: bun install
+      - run: bun run lint
       - run: bunx tsc --noEmit
       - run: bun test
       - run: bun run build

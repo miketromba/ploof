@@ -24,7 +24,9 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
       - run: bun install
-      - run: bunx tsc --noEmit
-      - run: bun test
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
       - run: bun run build
+      - run: npm pack --dry-run
       - run: npm publish --access public
