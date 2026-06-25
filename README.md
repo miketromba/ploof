@@ -1,9 +1,5 @@
 <p align="center">
-  <strong>Ploof</strong>
-</p>
-
-<p align="center">
-  AI asset generation from the command line.
+  <img src="assets/brand/ploof-banner.png" alt="Ploof - AI asset generation from the command line." width="100%" />
 </p>
 
 <p align="center">
