@@ -4,7 +4,7 @@
 	"description": "AI asset generation CLI for OpenAI images today, designed for multi-provider creative workflows.",
 	"type": "module",
 	"bin": {
-		"ploof": "./dist/ploof.js"
+		"ploof": "dist/ploof.js"
 	},
 	"files": [
 		"dist",
@@ -43,7 +43,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/miketromba/ploof.git"
+		"url": "git+https://github.com/miketromba/ploof.git"
 	},
 	"bugs": {
 		"url": "https://github.com/miketromba/ploof/issues"
