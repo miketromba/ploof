@@ -26,7 +26,7 @@
 		"format": "bunx biome format --write .",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run lint && bun run typecheck && bun test && bun run build",
-		"release": "bun run lint && bun run typecheck && bun test && bun run build && npm pack --dry-run && npm publish --access public",
+		"release": "bun run lint && bun run typecheck && bun test && bun run build && npm pack --dry-run",
 		"ploof": "bun run bin/ploof.ts",
 		"prepare": "husky || true"
 	},

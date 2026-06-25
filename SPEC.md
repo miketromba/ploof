@@ -51,8 +51,20 @@ Conventions to preserve:
 - Published package runs on Node 18+ and does not require Bun.
 - Published files are constrained to runtime artifacts, README, LICENSE, spec, and skill files.
 - GitHub Actions CI runs typecheck, tests, and build.
-- GitHub Actions publish runs on `v*` tags and supports npm trusted publishing/OIDC.
+- GitHub Actions publish runs on `v*` tags through npm trusted publishing/OIDC.
 - Human-readable output in TTY, compact output when piped, JSON/JSONL for agents and scripts.
+
+NPM trusted publisher settings for `@miketromba/ploof`:
+
+- Provider: GitHub Actions.
+- Organization or user: `miketromba`.
+- Repository: `ploof`.
+- Workflow filename: `publish.yml`.
+- Environment: blank.
+- Allowed action: `npm publish`.
+
+Local release verification must stop at `npm pack --dry-run`; do not run local
+`npm publish` for normal releases.
 
 ## Core Goals
 

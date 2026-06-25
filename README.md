@@ -273,6 +273,29 @@ PLOOF_OPENAI_LIVE_MODEL=gpt-image-1
 PLOOF_OPENAI_LIVE_SIZE=1024x1024
 ```
 
+## Publishing
+
+Local release verification stops at packaging:
+
+```bash
+bun run release
+```
+
+Publishing should happen from GitHub Actions by pushing a `v*` tag. The npm
+package must have a Trusted Publisher configured with:
+
+| Field | Value |
+| --- | --- |
+| Provider | GitHub Actions |
+| Organization or user | `miketromba` |
+| Repository | `ploof` |
+| Workflow filename | `publish.yml` |
+| Environment | blank |
+| Allowed action | `npm publish` |
+
+Do not publish from a local terminal unless intentionally doing a manual
+emergency release.
+
 ## License
 
 MIT
