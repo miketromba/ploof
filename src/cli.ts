@@ -17,7 +17,7 @@ import type {
 	OutputOptions,
 } from "./types";
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
 type CliOptions = Record<string, unknown> & {
 	apiKey?: string;
