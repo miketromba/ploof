@@ -120,7 +120,7 @@ function createClient(context: ProviderContext): OpenAI {
 	const credential = context.credential;
 	if (!credential.apiKey) {
 		throw new Error(
-			"No OpenAI API key found. Run 'ploof auth login openai --api-key <key>' or set PLOOF_OPENAI_API_KEY.",
+			"No OpenAI API key found. Run 'ploof login openai --api-key <key>' or set PLOOF_OPENAI_API_KEY.",
 		);
 	}
 

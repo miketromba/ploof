@@ -162,7 +162,7 @@ async function executeTask(
 	const credential = options.auth.getCredential(task.provider, task.profile);
 	if (!credential?.apiKey) {
 		throw new Error(
-			`No credentials found for ${task.provider}. Run 'ploof auth login ${task.provider}'.`,
+			`No credentials found for ${task.provider}. Run 'ploof login ${task.provider}'.`,
 		);
 	}
 

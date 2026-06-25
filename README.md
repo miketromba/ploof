@@ -55,7 +55,7 @@ npx ploof --help
 
 ```bash
 # Authenticate
-ploof auth login openai --api-key <your-api-key>
+ploof login openai --api-key <your-api-key>
 
 # Generate an image
 ploof image generate \
@@ -80,12 +80,25 @@ ploof run assets.yaml --parallel 4
 Credentials are stored locally in `~/.ploof/credentials.json`.
 
 ```bash
+ploof login openai --api-key <your-api-key>
+ploof login openai --api-key <your-api-key> --profile work
+ploof whoami openai
+ploof auth profiles openai
+ploof logout openai --profile work
+```
+
+The grouped auth commands are also available for scripts that prefer a namespace:
+
+```bash
 ploof auth login openai --api-key <your-api-key>
-ploof auth login openai --api-key <your-api-key> --profile work
 ploof auth status openai
 ploof auth profiles openai
 ploof auth logout openai --profile work
 ```
+
+If `--api-key` is omitted, `ploof login openai` reads
+`PLOOF_OPENAI_API_KEY` or `OPENAI_API_KEY`; in an interactive terminal it will
+prompt for a key without echoing it.
 
 Environment variables override stored credentials:
 
@@ -98,7 +111,7 @@ export OPENAI_API_KEY=sk-...
 OpenAI profile metadata:
 
 ```bash
-ploof auth login openai \
+ploof login openai \
   --api-key <key> \
   --organization <org-id> \
   --project <project-id> \

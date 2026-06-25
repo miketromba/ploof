@@ -72,7 +72,7 @@ export function createProgram(): Command {
 			"after",
 			`
 Getting started:
-  $ ploof auth login openai --api-key <your-api-key>
+  $ ploof login openai --api-key <your-api-key>
   $ ploof image generate --prompt "Studio product photo" --out assets/hero.png
   $ ploof learn
 
@@ -179,6 +179,10 @@ Examples:
 }
 
 function registerAuth(program: Command): void {
+	addLoginCommand(program);
+	addLogoutCommand(program);
+	addStatusCommand(program, "whoami");
+
 	const authCmd = program
 		.command("auth")
 		.description("Authenticate with asset generation providers")
@@ -186,13 +190,21 @@ function registerAuth(program: Command): void {
 			"after",
 			`
 Examples:
+  $ ploof login openai --api-key <your-api-key>
   $ ploof auth login openai --api-key <your-api-key>
   $ ploof auth status openai
   $ ploof auth profiles openai
   $ ploof auth logout openai`,
 		);
 
-	authCmd
+	addLoginCommand(authCmd);
+	addLogoutCommand(authCmd);
+	addStatusCommand(authCmd, "status");
+	addProfilesCommand(authCmd);
+}
+
+function addLoginCommand(parent: Command): void {
+	parent
 		.command("login <provider>")
 		.description("Store provider credentials")
 		.option("--api-key <key>", "Provider API key")
@@ -202,29 +214,31 @@ Examples:
 		.option("--base-url <url>", "Provider base URL")
 		.option("--no-default", "Do not set this profile as default")
 		.action(
-			wrapAction((provider: string, opts: CliOptions) => {
+			wrapAction(async (provider: string, opts: CliOptions) => {
 				if (provider !== "openai") {
 					throw new CliError(`Unsupported provider for auth: ${provider}`, 2);
 				}
+				const profile = opts.profile ?? "default";
+				const apiKey = await resolveLoginApiKey(provider, opts.apiKey);
 				const auth = new Auth();
 				auth.login(
 					provider,
-					opts.profile ?? "default",
+					profile,
 					{
-						apiKey: opts.apiKey,
-						organization: opts.organization,
-						project: opts.project,
-						baseURL: opts.baseUrl,
+						apiKey,
+						organization: opts.organization ?? process.env.PLOOF_OPENAI_ORG,
+						project: opts.project ?? process.env.PLOOF_OPENAI_PROJECT,
+						baseURL: opts.baseUrl ?? process.env.PLOOF_OPENAI_BASE_URL,
 					},
 					opts.default ?? true,
 				);
-				process.stdout.write(
-					`Authenticated ${provider} profile=${opts.profile}.\n`,
-				);
+				process.stdout.write(`Authenticated ${provider} profile=${profile}.\n`);
 			}),
 		);
+}
 
-	authCmd
+function addLogoutCommand(parent: Command): void {
+	parent
 		.command("logout <provider>")
 		.description("Remove stored credentials")
 		.option("--profile <name>", "Profile name")
@@ -238,9 +252,11 @@ Examples:
 				);
 			}),
 		);
+}
 
-	authCmd
-		.command("status [provider]")
+function addStatusCommand(parent: Command, name: string): void {
+	parent
+		.command(`${name} [provider]`)
 		.description("Show current auth state")
 		.option("--profile <name>", "Profile name")
 		.action(
@@ -248,7 +264,7 @@ Examples:
 				const status = new Auth().status(provider, opts.profile);
 				if (!status.authenticated) {
 					process.stdout.write(
-						`Not authenticated: provider=${provider} profile=${status.profile}. Run 'ploof auth login ${provider}'.\n`,
+						`Not authenticated: provider=${provider} profile=${status.profile}. Run 'ploof login ${provider}'.\n`,
 					);
 					return;
 				}
@@ -269,8 +285,10 @@ Examples:
 				);
 			}),
 		);
+}
 
-	authCmd
+function addProfilesCommand(parent: Command): void {
+	parent
 		.command("profiles [provider]")
 		.description("List stored auth profiles")
 		.action(
@@ -285,6 +303,85 @@ Examples:
 				}
 			}),
 		);
+}
+
+async function resolveLoginApiKey(
+	provider: string,
+	apiKey?: string,
+): Promise<string> {
+	const explicitKey = apiKey?.trim();
+	if (explicitKey) return explicitKey;
+
+	const envKey = getAuthEnvApiKey(provider)?.trim();
+	if (envKey) return envKey;
+
+	const promptedKey = await promptSecret(`${provider} API key`);
+	if (promptedKey) return promptedKey;
+
+	throw new CliError(
+		`API key is required. Pass --api-key <key>, set ${authEnvHint(
+			provider,
+		)}, or run this command in an interactive terminal.`,
+		2,
+	);
+}
+
+function getAuthEnvApiKey(provider: string): string | undefined {
+	if (provider === "openai") {
+		return process.env.PLOOF_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
+	}
+	return undefined;
+}
+
+function authEnvHint(provider: string): string {
+	if (provider === "openai") return "PLOOF_OPENAI_API_KEY";
+	return "the provider API key environment variable";
+}
+
+async function promptSecret(label: string): Promise<string | undefined> {
+	if (!process.stdin.isTTY || !process.stdout.isTTY) return undefined;
+	if (typeof process.stdin.setRawMode !== "function") return undefined;
+
+	return new Promise((resolve, reject) => {
+		let value = "";
+		const input = process.stdin;
+		const wasRaw = input.isRaw;
+
+		const cleanup = () => {
+			input.off("data", onData);
+			input.setRawMode(wasRaw);
+			input.pause();
+			process.stdout.write("\n");
+		};
+
+		const onData = (chunk: Buffer | string) => {
+			for (const char of String(chunk)) {
+				if (char === "\r" || char === "\n" || char === "\u0004") {
+					cleanup();
+					resolve(value.trim());
+					return;
+				}
+				if (char === "\u0003") {
+					cleanup();
+					reject(new CliError("Login cancelled.", 130));
+					return;
+				}
+				if (char === "\u007f" || char === "\b") {
+					value = value.slice(0, -1);
+					continue;
+				}
+				if (char >= " ") {
+					value += char;
+				}
+			}
+		};
+
+		process.stdout.write(`${label}: `);
+		input.setEncoding("utf8");
+		input.resume();
+		input.setRawMode(true);
+		input.on("data", onData);
+	});
 }
 
 function registerImage(program: Command): void {
@@ -458,7 +555,7 @@ async function runAndPrint(job: AssetJob, opts: CliOptions): Promise<void> {
 	const credential = auth.getCredential(job.provider, job.profile);
 	if (!credential?.apiKey) {
 		throw new CliError(
-			`No credentials found for ${job.provider}. Run 'ploof auth login ${job.provider} --api-key <key>' or set PLOOF_OPENAI_API_KEY.`,
+			`No credentials found for ${job.provider}. Run 'ploof login ${job.provider} --api-key <key>' or set PLOOF_OPENAI_API_KEY.`,
 			1,
 		);
 	}
