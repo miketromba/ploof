@@ -29,4 +29,17 @@ jobs:
       - run: bun run test
       - run: bun run build
       - run: npm pack --dry-run
-      - run: npm publish --access public
+      - id: package
+        run: |
+          node -e "const pkg = require('./package.json'); console.log('name=' + pkg.name); console.log('version=' + pkg.version)" >> "$GITHUB_OUTPUT"
+      - id: published
+        run: |
+          if npm dist-tag ls "${{ steps.package.outputs.name }}" 2>/dev/null | grep -q "^latest: ${{ steps.package.outputs.version }}$"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.published.outputs.exists != 'true'
+        run: npm publish --access public
+      - if: steps.published.outputs.exists == 'true'
+        run: echo "${{ steps.package.outputs.name }}@${{ steps.package.outputs.version }} is already published; skipping npm publish."
