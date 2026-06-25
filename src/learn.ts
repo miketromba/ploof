@@ -20,7 +20,7 @@ const output = markdown([
 	"```bash",
 	"ploof login openai --api-key <key>",
 	"ploof whoami openai",
-	"ploof auth profiles openai",
+	"ploof profiles openai",
 	"```",
 	"",
 	"Environment variables override stored credentials:",

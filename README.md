@@ -83,17 +83,8 @@ Credentials are stored locally in `~/.ploof/credentials.json`.
 ploof login openai --api-key <your-api-key>
 ploof login openai --api-key <your-api-key> --profile work
 ploof whoami openai
-ploof auth profiles openai
+ploof profiles openai
 ploof logout openai --profile work
-```
-
-The grouped auth commands are also available for scripts that prefer a namespace:
-
-```bash
-ploof auth login openai --api-key <your-api-key>
-ploof auth status openai
-ploof auth profiles openai
-ploof auth logout openai --profile work
 ```
 
 If `--api-key` is omitted, `ploof login openai` reads

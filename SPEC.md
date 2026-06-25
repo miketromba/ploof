@@ -137,17 +137,12 @@ OpenAI profile metadata may also include:
 ```bash
 ploof login openai --api-key <key> [--profile default] [--organization org] [--project proj] [--base-url url]
 ploof whoami [provider] [--profile default]
+ploof profiles [provider]
 ploof logout openai [--profile default]
-
-ploof auth login openai --api-key <key> [--profile default] [--organization org] [--project proj] [--base-url url]
-ploof auth status [provider] [--profile default]
-ploof auth logout openai [--profile default]
-ploof auth profiles [provider]
 ```
 
-Top-level `login`, `whoami`, and `logout` are the primary human-facing
-commands. The `auth` namespace remains available for grouped discovery and
-script compatibility.
+`login`, `whoami`, `profiles`, and `logout` are the only authentication
+commands. Ploof should not expose a second equivalent auth namespace.
 
 `ploof login openai` accepts `--api-key`, reads `PLOOF_OPENAI_API_KEY` or
 `OPENAI_API_KEY` when the flag is omitted, and prompts without echoing input

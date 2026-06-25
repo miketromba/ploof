@@ -181,26 +181,8 @@ Examples:
 function registerAuth(program: Command): void {
 	addLoginCommand(program);
 	addLogoutCommand(program);
-	addStatusCommand(program, "whoami");
-
-	const authCmd = program
-		.command("auth")
-		.description("Authenticate with asset generation providers")
-		.addHelpText(
-			"after",
-			`
-Examples:
-  $ ploof login openai --api-key <your-api-key>
-  $ ploof auth login openai --api-key <your-api-key>
-  $ ploof auth status openai
-  $ ploof auth profiles openai
-  $ ploof auth logout openai`,
-		);
-
-	addLoginCommand(authCmd);
-	addLogoutCommand(authCmd);
-	addStatusCommand(authCmd, "status");
-	addProfilesCommand(authCmd);
+	addWhoamiCommand(program);
+	addProfilesCommand(program);
 }
 
 function addLoginCommand(parent: Command): void {
@@ -254,9 +236,9 @@ function addLogoutCommand(parent: Command): void {
 		);
 }
 
-function addStatusCommand(parent: Command, name: string): void {
+function addWhoamiCommand(parent: Command): void {
 	parent
-		.command(`${name} [provider]`)
+		.command("whoami [provider]")
 		.description("Show current auth state")
 		.option("--profile <name>", "Profile name")
 		.action(
