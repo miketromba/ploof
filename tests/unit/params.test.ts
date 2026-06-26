@@ -9,13 +9,13 @@ describe("params", () => {
 	test("parses scalar and nested param assignments", () => {
 		expect(
 			parseParamAssignments([
-				"model=gpt-image-1",
+				"model=gpt-image-2",
 				"n=2",
 				"stream=true",
 				"metadata.foo=bar",
 			]),
 		).toEqual({
-			model: "gpt-image-1",
+			model: "gpt-image-2",
 			n: 2,
 			stream: true,
 			metadata: { foo: "bar" },

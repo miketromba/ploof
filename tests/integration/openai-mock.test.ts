@@ -108,7 +108,7 @@ describe("OpenAI mock end-to-end CLI", () => {
 				"--prompt",
 				"mock red cube",
 				"--model",
-				"gpt-image-1",
+				"gpt-image-2",
 				"--size",
 				"1024x1024",
 				"--format",
@@ -132,7 +132,7 @@ describe("OpenAI mock end-to-end CLI", () => {
 
 		const sidecar = JSON.parse(readFileSync(`${output}.json`, "utf-8"));
 		expect(sidecar.prompt).toBe("mock red cube");
-		expect(sidecar.params.model).toBe("gpt-image-1");
+		expect(sidecar.params.model).toBe("gpt-image-2");
 		expect(sidecar.metadata.revisedPrompts).toEqual(["mock revised prompt"]);
 
 		expect(requests).toHaveLength(1);
@@ -157,7 +157,7 @@ describe("OpenAI mock end-to-end CLI", () => {
 				"--prompt",
 				"turn it blue",
 				"--model",
-				"gpt-image-1",
+				"gpt-image-2",
 				"--format",
 				"png",
 				"--out",
@@ -201,7 +201,7 @@ describe("OpenAI mock end-to-end CLI", () => {
 				"    provider: openai",
 				"    prompt: mock base",
 				"    params:",
-				"      model: gpt-image-1",
+				"      model: gpt-image-2",
 				"    output: assets/base.png",
 				"  - id: edit",
 				"    kind: image.edit",
@@ -209,7 +209,7 @@ describe("OpenAI mock end-to-end CLI", () => {
 				"    needs: [base]",
 				"    prompt: mock edit",
 				"    params:",
-				"      model: gpt-image-1",
+				"      model: gpt-image-2",
 				"    inputs:",
 				"      images:",
 				"        - task: base",

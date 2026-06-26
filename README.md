@@ -58,7 +58,7 @@ ploof login openai --api-key <your-api-key>
 ploof image generate \
   --prompt "Studio product photo of a matte black water bottle" \
   --out assets/hero.png \
-  --model gpt-image-1 \
+  --model gpt-image-2 \
   --size 1024x1024
 
 # Edit an image with context
@@ -114,7 +114,7 @@ ploof image generate \
   --profile default \
   --prompt "Editorial portrait, dramatic side light" \
   --out assets/portrait.png \
-  --model gpt-image-1 \
+  --model gpt-image-2 \
   --size 1024x1024 \
   --quality high \
   --format png
@@ -161,7 +161,7 @@ tasks:
     provider: openai
     prompt: "Studio product photo"
     params:
-      model: gpt-image-1
+      model: gpt-image-2
       size: 1024x1024
       quality: high
     output: assets/base.png
@@ -265,7 +265,7 @@ PLOOF_OPENAI_API_KEY=sk-... bun test tests/e2e
 Optional live-test overrides:
 
 ```bash
-PLOOF_OPENAI_LIVE_MODEL=gpt-image-1
+PLOOF_OPENAI_LIVE_MODEL=gpt-image-2
 PLOOF_OPENAI_LIVE_SIZE=1024x1024
 ```
 

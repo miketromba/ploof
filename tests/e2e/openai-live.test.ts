@@ -38,7 +38,7 @@ describe.skipIf(!hasOpenAIKey)("OpenAI live end-to-end", () => {
 				"--prompt",
 				"A simple red cube on a white background",
 				"--model",
-				process.env.PLOOF_OPENAI_LIVE_MODEL ?? "gpt-image-1",
+				process.env.PLOOF_OPENAI_LIVE_MODEL ?? "gpt-image-2",
 				"--size",
 				process.env.PLOOF_OPENAI_LIVE_SIZE ?? "1024x1024",
 				"--format",

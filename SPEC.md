@@ -182,7 +182,7 @@ ploof image generate \
   --profile default \
   --prompt "Studio product photo" \
   --out assets/hero.png \
-  --model gpt-image-1 \
+  --model gpt-image-2 \
   --size 1024x1024 \
   --quality high \
   --format png
@@ -226,7 +226,7 @@ tasks:
     provider: openai
     prompt: "Studio product photo"
     params:
-      model: gpt-image-1
+      model: gpt-image-2
       size: 1024x1024
       quality: high
     output: assets/base.png
@@ -325,7 +325,7 @@ Asset-producing commands should write the asset to disk and print structured met
   "provider": "openai",
   "outputs": ["assets/hero.png"],
   "metadata": {
-    "model": "gpt-image-1"
+    "model": "gpt-image-2"
   }
 }
 ```
