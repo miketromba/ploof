@@ -2,7 +2,7 @@
 
 ## Summary
 
-Ploof is an npm-published CLI for generating and editing assets through AI generation providers. It starts with OpenAI image generation and editing, but the architecture must support multiple authenticated providers, multiple asset modalities, provider-specific settings, and parallel execution across mixed jobs.
+Ploof is an npm-published CLI for generating and editing assets through AI generation providers. It starts with OpenAI image and video generation/editing, but the architecture must support multiple authenticated providers, multiple asset modalities, provider-specific settings, and parallel execution across mixed jobs.
 
 The product should feel like a small, sharp developer tool: easy to run manually, predictable in scripts, and optimized for AI agents.
 
@@ -87,6 +87,16 @@ Initial capabilities:
 - `image.generate`
 - `image.edit`
 - `image.variation`
+- `video.generate`
+- `video.edit`
+- `video.extend`
+- `video.remix`
+- `video.status`
+- `video.download`
+- `video.list`
+- `video.delete`
+- `video.character.create`
+- `video.character.get`
 
 Future providers should be added through the provider registry without changing the manifest model.
 
@@ -229,6 +239,70 @@ authenticated project has DALL-E 2 variation access; if OpenAI returns a 404,
 use `ploof image edit` for image-to-image workflows. `ploof image variations`
 is an alias.
 
+### Video Generation
+
+OpenAI video generation uses the asynchronous Videos API. `ploof video generate`
+submits a job; passing `--out` or `--download` makes Ploof poll until a terminal
+status and download the requested asset.
+
+```bash
+ploof video generate \
+  --provider openai \
+  --prompt "Wide tracking shot of a paper city at blue hour" \
+  --model sora-2 \
+  --size 1280x720 \
+  --seconds 4 \
+  --out assets/clip.mp4 \
+  --output json
+```
+
+First-class OpenAI video flags:
+
+- `--model <model>`
+- `--size <size>`
+- `--seconds <seconds>`
+- `--input-reference <path-or-url-or-file-id>`
+- `--input-reference-file-id <id>`
+- `--input-reference-url <url>`
+- `--character <id>`
+- `--wait`
+- `--download`
+- `--variant video|thumbnail|spritesheet`
+- `--poll-interval <seconds>`
+- `--timeout <seconds>`
+- `--param key=value`
+- `--json '{...}'`
+
+OpenAI video generation defaults to `sora-2` when no model is specified.
+
+### Video Editing And Library
+
+```bash
+ploof video edit \
+  --video-id video_abc123 \
+  --prompt "Shift the palette to teal and rust" \
+  --out assets/edit.mp4
+
+ploof video extend \
+  --video-id video_abc123 \
+  --prompt "Continue as the camera rises over the rooftops" \
+  --seconds 4 \
+  --out assets/extended.mp4
+
+ploof video download video_abc123 --variant thumbnail --out assets/thumb.webp
+ploof video status video_abc123 --output json
+ploof video list --limit 20 --output json
+ploof video delete video_abc123
+ploof video character create --name Mossy --video character.mp4 --output json
+ploof video character get char_abc123 --output json
+```
+
+Video edits accept either `--video-id <id>` for an existing completed OpenAI
+video or `--video <path>` for an uploaded source video when the authenticated
+project is eligible for that workflow. Extensions accept a source video id or
+upload, plus a prompt and `--seconds`. `video remix` is supported for the SDK's
+legacy remix endpoint, but new integrations should prefer `video edit`.
+
 ### Batch Run
 
 ```bash
@@ -270,6 +344,18 @@ tasks:
       images:
         - task: base
     output: assets/variation.png
+
+  - id: clip
+    kind: video.generate
+    provider: openai
+    prompt: "Slow dolly shot through a miniature paper city"
+    params:
+      model: sora-2
+      size: 1280x720
+      seconds: "4"
+    wait: true
+    download: true
+    output: assets/clip.mp4
 ```
 
 ## Asset Input Model
@@ -297,6 +383,11 @@ OpenAI image editing maps:
 - `role=image` to image input files.
 - `role=mask` to mask file.
 
+OpenAI video generation/editing maps:
+
+- `role=reference` to `input_reference` for image-guided video generation.
+- `role=video` to source video uploads for eligible edit/extension workflows.
+
 Future providers can map roles such as `reference`, `style`, `init-image`, `audio`, or `video` differently.
 
 ## Provider Architecture
@@ -310,6 +401,16 @@ type Provider = {
   runImageGenerate(job, context): Promise<ProviderResult>
   runImageEdit(job, context): Promise<ProviderResult>
   runImageVariation(job, context): Promise<ProviderResult>
+  runVideoGenerate(job, context): Promise<ProviderResult>
+  runVideoEdit(job, context): Promise<ProviderResult>
+  runVideoExtend(job, context): Promise<ProviderResult>
+  runVideoRemix(job, context): Promise<ProviderResult>
+  runVideoStatus(job, context): Promise<ProviderResult>
+  runVideoDownload(job, context): Promise<ProviderResult>
+  runVideoList(job, context): Promise<ProviderResult>
+  runVideoDelete(job, context): Promise<ProviderResult>
+  runVideoCharacterCreate(job, context): Promise<ProviderResult>
+  runVideoCharacterGet(job, context): Promise<ProviderResult>
 }
 ```
 

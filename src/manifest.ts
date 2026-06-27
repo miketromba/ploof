@@ -19,7 +19,21 @@ const inputRefSchema = z.union([
 
 const taskSchema = z.object({
 	id: z.string(),
-	kind: z.enum(["image.generate", "image.edit", "image.variation"]),
+	kind: z.enum([
+		"image.generate",
+		"image.edit",
+		"image.variation",
+		"video.generate",
+		"video.edit",
+		"video.extend",
+		"video.remix",
+		"video.status",
+		"video.download",
+		"video.list",
+		"video.delete",
+		"video.character.create",
+		"video.character.get",
+	]),
 	provider: z.string().default("openai"),
 	profile: z.string().optional(),
 	needs: z.array(z.string()).default([]),
@@ -27,10 +41,21 @@ const taskSchema = z.object({
 	params: z.record(z.string(), z.unknown()).default({}),
 	output: z.string().optional(),
 	sidecar: z.boolean().optional(),
+	videoId: z.string().optional(),
+	characterId: z.string().optional(),
+	name: z.string().optional(),
+	wait: z.boolean().optional(),
+	download: z.boolean().optional(),
+	variants: z.array(z.enum(["video", "thumbnail", "spritesheet"])).optional(),
+	pollIntervalMs: z.number().int().nonnegative().optional(),
+	timeoutMs: z.number().int().nonnegative().optional(),
 	inputs: z
 		.object({
 			images: z.array(inputRefSchema).optional(),
 			mask: inputRefSchema.optional(),
+			video: inputRefSchema.optional(),
+			videos: z.array(inputRefSchema).optional(),
+			inputReference: inputRefSchema.optional(),
 		})
 		.optional(),
 });
@@ -140,11 +165,39 @@ function validateManifest(manifest: Manifest): void {
 		ids.add(task.id);
 	}
 	for (const task of manifest.tasks) {
-		if (task.kind !== "image.variation" && !task.prompt) {
+		if (requiresPrompt(task.kind) && !task.prompt) {
 			throw new Error(`Task ${task.id} requires a prompt.`);
 		}
 		if (task.kind === "image.variation" && !task.inputs?.images?.length) {
 			throw new Error(`Task ${task.id} requires inputs.images.`);
+		}
+		if (
+			["video.edit", "video.extend"].includes(task.kind) &&
+			!task.videoId &&
+			!task.inputs?.video &&
+			!task.inputs?.videos?.length
+		) {
+			throw new Error(`Task ${task.id} requires videoId or inputs.video.`);
+		}
+		if (
+			[
+				"video.status",
+				"video.download",
+				"video.delete",
+				"video.remix",
+			].includes(task.kind) &&
+			!task.videoId
+		) {
+			throw new Error(`Task ${task.id} requires videoId.`);
+		}
+		if (task.kind === "video.character.create") {
+			if (!task.name) throw new Error(`Task ${task.id} requires name.`);
+			if (!task.inputs?.video && !task.inputs?.videos?.length) {
+				throw new Error(`Task ${task.id} requires inputs.video.`);
+			}
+		}
+		if (task.kind === "video.character.get" && !task.characterId) {
+			throw new Error(`Task ${task.id} requires characterId.`);
 		}
 		for (const need of task.needs) {
 			if (!ids.has(need)) {
@@ -152,6 +205,17 @@ function validateManifest(manifest: Manifest): void {
 			}
 		}
 	}
+}
+
+function requiresPrompt(kind: OperationKind): boolean {
+	return [
+		"image.generate",
+		"image.edit",
+		"video.generate",
+		"video.edit",
+		"video.extend",
+		"video.remix",
+	].includes(kind);
 }
 
 async function executeTask(
@@ -200,10 +264,105 @@ async function executeTask(
 		);
 	}
 
-	return provider.runImageEdit(
-		{ ...base, kind: "image.edit", inputs },
-		{ credential, verbose: options.verbose, sidecar: base.sidecar },
-	);
+	if (task.kind === "image.edit") {
+		return provider.runImageEdit(
+			{ ...base, kind: "image.edit", inputs },
+			{ credential, verbose: options.verbose, sidecar: base.sidecar },
+		);
+	}
+
+	const lifecycle = {
+		wait: task.wait,
+		download: task.download,
+		variants: task.variants,
+		pollIntervalMs: task.pollIntervalMs,
+		timeoutMs: task.timeoutMs,
+	};
+	const context = {
+		credential,
+		verbose: options.verbose,
+		sidecar: base.sidecar,
+	};
+	switch (task.kind) {
+		case "video.generate":
+			return provider.runVideoGenerate(
+				{ ...base, kind: "video.generate", inputs, ...lifecycle },
+				context,
+			);
+		case "video.edit":
+			return provider.runVideoEdit(
+				{
+					...base,
+					kind: "video.edit",
+					inputs,
+					videoId: task.videoId,
+					...lifecycle,
+				},
+				context,
+			);
+		case "video.extend":
+			return provider.runVideoExtend(
+				{
+					...base,
+					kind: "video.extend",
+					inputs,
+					videoId: task.videoId,
+					...lifecycle,
+				},
+				context,
+			);
+		case "video.remix":
+			return provider.runVideoRemix(
+				{
+					...base,
+					kind: "video.remix",
+					videoId: task.videoId ?? "",
+					...lifecycle,
+				},
+				context,
+			);
+		case "video.status":
+			return provider.runVideoStatus(
+				{ ...base, kind: "video.status", videoId: task.videoId ?? "" },
+				context,
+			);
+		case "video.download":
+			return provider.runVideoDownload(
+				{
+					...base,
+					kind: "video.download",
+					videoId: task.videoId ?? "",
+					variants: task.variants ?? ["video"],
+				},
+				context,
+			);
+		case "video.list":
+			return provider.runVideoList({ ...base, kind: "video.list" }, context);
+		case "video.delete":
+			return provider.runVideoDelete(
+				{ ...base, kind: "video.delete", videoId: task.videoId ?? "" },
+				context,
+			);
+		case "video.character.create":
+			return provider.runVideoCharacterCreate(
+				{
+					...base,
+					kind: "video.character.create",
+					name: task.name ?? "",
+					inputs,
+				},
+				context,
+			);
+		case "video.character.get":
+			return provider.runVideoCharacterGet(
+				{
+					...base,
+					kind: "video.character.get",
+					characterId: task.characterId ?? "",
+				},
+				context,
+			);
+	}
 }
 
 function resolveInputs(
@@ -215,18 +374,45 @@ function resolveInputs(
 ): AssetInput[] {
 	const result: AssetInput[] = [];
 	for (const image of task.inputs?.images ?? []) {
-		result.push({
-			role: "image",
-			source: resolveInputRef(image, options),
-		});
+		result.push(resolveInputAsset("image", image, options));
 	}
 	if (task.inputs?.mask) {
-		result.push({
-			role: "mask",
-			source: resolveInputRef(task.inputs.mask, options),
-		});
+		result.push(resolveInputAsset("mask", task.inputs.mask, options));
+	}
+	if (task.inputs?.inputReference) {
+		result.push(
+			resolveInputAsset("reference", task.inputs.inputReference, options),
+		);
+	}
+	if (task.inputs?.video) {
+		result.push(resolveInputAsset("video", task.inputs.video, options));
+	}
+	for (const video of task.inputs?.videos ?? []) {
+		result.push(resolveInputAsset("video", video, options));
 	}
 	return result;
+}
+
+function resolveInputAsset(
+	role: AssetInput["role"],
+	ref: z.infer<typeof inputRefSchema>,
+	options: {
+		baseDir: string;
+		completed: Map<string, JobResult>;
+	},
+): AssetInput {
+	if (typeof ref === "string") {
+		return {
+			role,
+			source: resolveInputRef(ref, options),
+		};
+	}
+	return {
+		role,
+		source: resolveInputRef(ref, options),
+		mime: ref.mime,
+		name: ref.name,
+	};
 }
 
 function resolveInputRef(

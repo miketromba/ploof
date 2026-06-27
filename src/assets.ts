@@ -99,13 +99,18 @@ export async function saveImageData(options: {
 	defaultName: string;
 }): Promise<string> {
 	const format = normalizeImageFormat(options.format);
-	const output = resolveOutputPath({
-		output: options.output,
-		index: options.index,
-		total: options.total,
-		format,
-		defaultName: options.defaultName,
-	});
+	return saveAssetData({ ...options, format });
+}
+
+export async function saveAssetData(options: {
+	data: string | Uint8Array;
+	output?: string;
+	index: number;
+	total: number;
+	format: string;
+	defaultName: string;
+}): Promise<string> {
+	const output = resolveAssetOutputPath(options);
 	await mkdir(dirname(output), { recursive: true });
 	const bytes =
 		typeof options.data === "string"
@@ -131,6 +136,23 @@ export async function downloadToFile(options: {
 	}
 	const data = new Uint8Array(await response.arrayBuffer());
 	return saveImageData({ ...options, data });
+}
+
+export async function saveResponseToFile(options: {
+	response: Response;
+	output?: string;
+	index: number;
+	total: number;
+	format: string;
+	defaultName: string;
+}): Promise<string> {
+	if (!options.response.ok) {
+		throw new Error(
+			`Failed to download generated asset: ${options.response.status} ${options.response.statusText}`,
+		);
+	}
+	const data = new Uint8Array(await options.response.arrayBuffer());
+	return saveAssetData({ ...options, data });
 }
 
 export async function writeSidecar(
@@ -174,6 +196,8 @@ export function mimeFromPath(path: string): string | undefined {
 			return "audio/wav";
 		case ".mp4":
 			return "video/mp4";
+		case ".mov":
+			return "video/quicktime";
 		default:
 			return undefined;
 	}
@@ -184,7 +208,7 @@ function normalizeImageFormat(format: string | undefined): string {
 	return format.replace(/^\./, "").toLowerCase();
 }
 
-function resolveOutputPath(options: {
+export function resolveAssetOutputPath(options: {
 	output?: string;
 	index: number;
 	total: number;
@@ -240,6 +264,10 @@ function extensionForMime(mime: string | undefined): string {
 			return ".jpg";
 		case "image/webp":
 			return ".webp";
+		case "video/mp4":
+			return ".mp4";
+		case "video/quicktime":
+			return ".mov";
 		default:
 			return "";
 	}

@@ -16,28 +16,51 @@ import type {
 	ImageVariationJob,
 	JobResult,
 	OutputOptions,
+	ProviderContext,
+	VideoCharacterCreateJob,
+	VideoCharacterGetJob,
+	VideoDeleteJob,
+	VideoDownloadJob,
+	VideoDownloadVariant,
+	VideoEditJob,
+	VideoExtendJob,
+	VideoGenerateJob,
+	VideoListJob,
+	VideoRemixJob,
+	VideoStatusJob,
 } from "./types";
 
-const VERSION = "0.1.5";
+const VERSION = "0.2.0";
 
 type CliOptions = Record<string, unknown> & {
 	apiKey?: string;
+	after?: string;
 	background?: string;
 	baseUrl?: string;
+	before?: string;
+	character?: string[] | string;
+	characterId?: string;
 	default?: boolean;
 	detail?: boolean;
+	download?: boolean;
 	dryRun?: boolean;
 	fields?: string;
 	format?: string;
 	image?: string[] | string;
+	inputReference?: string;
+	inputReferenceFileId?: string;
+	inputReferenceUrl?: string;
 	inputFidelity?: string;
 	json?: string;
+	limit?: number;
 	mask?: string;
 	model?: string;
 	moderation?: string;
 	n?: number;
+	name?: string;
 	noColor?: boolean;
 	organization?: string;
+	order?: string;
 	out?: string;
 	output?: string;
 	outputCompression?: number;
@@ -45,6 +68,7 @@ type CliOptions = Record<string, unknown> & {
 	parallel?: number;
 	param?: string[];
 	partialImages?: number;
+	pollInterval?: number;
 	profile?: string;
 	project?: string;
 	prompt?: string;
@@ -52,13 +76,19 @@ type CliOptions = Record<string, unknown> & {
 	quality?: string;
 	quiet?: boolean;
 	responseFormat?: string;
+	seconds?: string;
 	sidecar?: boolean;
 	size?: string;
 	stream?: boolean;
 	style?: string;
 	target?: string;
+	timeout?: number;
 	user?: string;
+	variant?: string[] | string;
 	verbose?: boolean;
+	video?: string;
+	videoId?: string;
+	wait?: boolean;
 };
 
 export function createProgram(): Command {
@@ -95,6 +125,7 @@ Use "ploof <command> --help" for more information about a command.`,
 	registerConfig(program);
 	registerAuth(program);
 	registerImage(program);
+	registerVideo(program);
 	registerRun(program);
 	registerLearn(program);
 	registerSkill(program);
@@ -460,6 +491,283 @@ function registerImage(program: Command): void {
 	);
 }
 
+function registerVideo(program: Command): void {
+	const videoCmd = program
+		.command("video")
+		.description("Generate, edit, extend, inspect, and download video assets");
+
+	const generateCmd = videoCmd
+		.command("generate")
+		.alias("create")
+		.description("Create an OpenAI video generation job")
+		.requiredOption("--prompt <prompt>", "Video prompt")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--out <path>", "Output file or directory")
+		.option(
+			"--input-reference <path-or-url-or-file-id>",
+			"Image reference path, URL, data URL, or file id",
+		)
+		.option("--input-reference-file-id <id>", "Uploaded image file id")
+		.option("--input-reference-url <url>", "Image URL or data URL reference")
+		.option("--character <id>", "Reusable character id", collect, []);
+	addOpenAIVideoRenderOptions(generateCmd);
+	generateCmd.action(
+		wrapAction(async (opts: CliOptions, command: Command) => {
+			const allOpts = { ...command.optsWithGlobals(), ...opts };
+			const job: VideoGenerateJob = {
+				kind: "video.generate",
+				provider: allOpts.provider ?? "openai",
+				profile: allOpts.profile,
+				prompt: allOpts.prompt ?? "",
+				output: allOpts.out,
+				params: buildVideoCreateParams(allOpts),
+				inputs: normalizeVideoReferenceInputs(allOpts),
+				...videoLifecycleOptions(allOpts),
+			};
+			await runAndPrint(job, allOpts);
+		}),
+	);
+
+	const editCmd = videoCmd
+		.command("edit")
+		.description("Create a video edit job from a completed video id or upload")
+		.requiredOption("--prompt <prompt>", "Edit prompt")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--video-id <id>", "Completed OpenAI video id")
+		.option("--video <path>", "Source video path or URL")
+		.option("--out <path>", "Output file or directory");
+	addOpenAIVideoRenderOptions(editCmd);
+	editCmd.action(
+		wrapAction(async (opts: CliOptions, command: Command) => {
+			const allOpts = { ...command.optsWithGlobals(), ...opts };
+			if (!allOpts.videoId && !allOpts.video) {
+				throw new CliError("Provide --video-id or --video.", 2);
+			}
+			const job: VideoEditJob = {
+				kind: "video.edit",
+				provider: allOpts.provider ?? "openai",
+				profile: allOpts.profile,
+				prompt: allOpts.prompt ?? "",
+				output: allOpts.out,
+				params: buildVideoRenderParams(allOpts),
+				videoId: allOpts.videoId,
+				inputs: normalizeVideoInputs(allOpts.video),
+				...videoLifecycleOptions(allOpts),
+			};
+			await runAndPrint(job, allOpts);
+		}),
+	);
+
+	const extendCmd = videoCmd
+		.command("extend")
+		.description("Create a video extension job")
+		.requiredOption("--prompt <prompt>", "Extension prompt")
+		.requiredOption("--seconds <seconds>", "New segment duration")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--video-id <id>", "Completed OpenAI video id")
+		.option("--video <path>", "Source video path or URL")
+		.option("--out <path>", "Output file or directory");
+	addOpenAIVideoRenderOptions(extendCmd, { includeSeconds: false });
+	extendCmd.action(
+		wrapAction(async (opts: CliOptions, command: Command) => {
+			const allOpts = { ...command.optsWithGlobals(), ...opts };
+			if (!allOpts.videoId && !allOpts.video) {
+				throw new CliError("Provide --video-id or --video.", 2);
+			}
+			const job: VideoExtendJob = {
+				kind: "video.extend",
+				provider: allOpts.provider ?? "openai",
+				profile: allOpts.profile,
+				prompt: allOpts.prompt ?? "",
+				output: allOpts.out,
+				params: buildVideoRenderParams(allOpts),
+				videoId: allOpts.videoId,
+				inputs: normalizeVideoInputs(allOpts.video),
+				...videoLifecycleOptions(allOpts),
+			};
+			await runAndPrint(job, allOpts);
+		}),
+	);
+
+	const remixCmd = videoCmd
+		.command("remix")
+		.description("Create a deprecated OpenAI video remix job")
+		.requiredOption("--video-id <id>", "Completed OpenAI video id")
+		.requiredOption("--prompt <prompt>", "Remix prompt")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--out <path>", "Output file or directory");
+	addOpenAIVideoLifecycleOptions(remixCmd);
+	remixCmd
+		.option("--param <key=value>", "Provider-specific parameter", collect, [])
+		.option("--json <object>", "Provider-specific JSON object");
+	remixCmd.action(
+		wrapAction(async (opts: CliOptions, command: Command) => {
+			const allOpts = { ...command.optsWithGlobals(), ...opts };
+			const job: VideoRemixJob = {
+				kind: "video.remix",
+				provider: allOpts.provider ?? "openai",
+				profile: allOpts.profile,
+				prompt: allOpts.prompt ?? "",
+				output: allOpts.out,
+				params: mergeObjects(
+					parseJsonObject(allOpts.json),
+					parseParamAssignments(allOpts.param),
+				),
+				videoId: allOpts.videoId ?? "",
+				...videoLifecycleOptions(allOpts),
+			};
+			await runAndPrint(job, allOpts);
+		}),
+	);
+
+	videoCmd
+		.command("status <video-id>")
+		.alias("get")
+		.alias("retrieve")
+		.description("Fetch video job metadata")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.action(
+			wrapAction(
+				async (videoId: string, opts: CliOptions, command: Command) => {
+					const allOpts = { ...command.optsWithGlobals(), ...opts };
+					const job: VideoStatusJob = {
+						kind: "video.status",
+						provider: allOpts.provider ?? "openai",
+						profile: allOpts.profile,
+						videoId,
+					};
+					await runAndPrint(job, allOpts);
+				},
+			),
+		);
+
+	videoCmd
+		.command("download <video-id>")
+		.description("Download a completed video or supporting asset")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--out <path>", "Output file or directory")
+		.option(
+			"--variant <variant>",
+			"video, thumbnail, or spritesheet",
+			collect,
+			[],
+		)
+		.action(
+			wrapAction(
+				async (videoId: string, opts: CliOptions, command: Command) => {
+					const allOpts = { ...command.optsWithGlobals(), ...opts };
+					const job: VideoDownloadJob = {
+						kind: "video.download",
+						provider: allOpts.provider ?? "openai",
+						profile: allOpts.profile,
+						output: allOpts.out,
+						videoId,
+						variants: parseVideoVariants(allOpts.variant),
+					};
+					await runAndPrint(job, allOpts);
+				},
+			),
+		);
+
+	videoCmd
+		.command("list")
+		.description("List recently generated videos")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--limit <count>", "Maximum videos to return", parsePositiveInt)
+		.option("--after <id>", "Pagination cursor")
+		.option("--order <order>", "asc or desc")
+		.action(
+			wrapAction(async (opts: CliOptions, command: Command) => {
+				const allOpts = { ...command.optsWithGlobals(), ...opts };
+				const job: VideoListJob = {
+					kind: "video.list",
+					provider: allOpts.provider ?? "openai",
+					profile: allOpts.profile,
+					params: buildVideoListParams(allOpts),
+				};
+				await runAndPrint(job, allOpts);
+			}),
+		);
+
+	videoCmd
+		.command("delete <video-id>")
+		.description("Delete a completed or failed video")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.action(
+			wrapAction(
+				async (videoId: string, opts: CliOptions, command: Command) => {
+					const allOpts = { ...command.optsWithGlobals(), ...opts };
+					const job: VideoDeleteJob = {
+						kind: "video.delete",
+						provider: allOpts.provider ?? "openai",
+						profile: allOpts.profile,
+						videoId,
+					};
+					await runAndPrint(job, allOpts);
+				},
+			),
+		);
+
+	const characterCmd = videoCmd
+		.command("character")
+		.description("Manage reusable OpenAI video characters");
+
+	characterCmd
+		.command("create")
+		.description("Create a reusable character from an uploaded video")
+		.requiredOption("--name <name>", "Character display name")
+		.requiredOption("--video <path>", "Character video path or URL")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--param <key=value>", "Provider-specific parameter", collect, [])
+		.option("--json <object>", "Provider-specific JSON object")
+		.action(
+			wrapAction(async (opts: CliOptions, command: Command) => {
+				const allOpts = { ...command.optsWithGlobals(), ...opts };
+				const job: VideoCharacterCreateJob = {
+					kind: "video.character.create",
+					provider: allOpts.provider ?? "openai",
+					profile: allOpts.profile,
+					name: allOpts.name ?? "",
+					inputs: normalizeVideoInputs(allOpts.video),
+					params: mergeObjects(
+						parseJsonObject(allOpts.json),
+						parseParamAssignments(allOpts.param),
+					),
+				};
+				await runAndPrint(job, allOpts);
+			}),
+		);
+
+	characterCmd
+		.command("get <character-id>")
+		.description("Fetch a reusable character")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.action(
+			wrapAction(
+				async (characterId: string, opts: CliOptions, command: Command) => {
+					const allOpts = { ...command.optsWithGlobals(), ...opts };
+					const job: VideoCharacterGetJob = {
+						kind: "video.character.get",
+						provider: allOpts.provider ?? "openai",
+						profile: allOpts.profile,
+						characterId,
+					};
+					await runAndPrint(job, allOpts);
+				},
+			),
+		);
+}
+
 function registerRun(program: Command): void {
 	program
 		.command("run <manifest>")
@@ -545,6 +853,43 @@ function addOpenAIImageVariationOptions(command: Command): void {
 		.option("--json <object>", "Provider-specific JSON object");
 }
 
+function addOpenAIVideoRenderOptions(
+	command: Command,
+	options: { includeSeconds?: boolean } = {},
+): void {
+	command
+		.option("--model <model>", "Video model")
+		.option("--size <size>", "Video size")
+		.option("--param <key=value>", "Provider-specific parameter", collect, [])
+		.option("--json <object>", "Provider-specific JSON object");
+	if (options.includeSeconds ?? true) {
+		command.option("--seconds <seconds>", "Video duration in seconds");
+	}
+	addOpenAIVideoLifecycleOptions(command);
+}
+
+function addOpenAIVideoLifecycleOptions(command: Command): void {
+	command
+		.option("--wait", "Poll until the video reaches a terminal status")
+		.option("--download", "Download the video after waiting")
+		.option(
+			"--variant <variant>",
+			"Download variant: video, thumbnail, or spritesheet",
+			collect,
+			[],
+		)
+		.option(
+			"--poll-interval <seconds>",
+			"Polling interval while waiting",
+			parseNumber,
+		)
+		.option(
+			"--timeout <seconds>",
+			"Maximum wait time before timing out",
+			parseNumber,
+		);
+}
+
 function buildImageParams(opts: CliOptions): Record<string, unknown> {
 	const firstClass = compactObject({
 		model: opts.model,
@@ -586,6 +931,114 @@ function buildImageVariationParams(opts: CliOptions): Record<string, unknown> {
 	);
 }
 
+function buildVideoCreateParams(opts: CliOptions): Record<string, unknown> {
+	const firstClass = compactObject({
+		model: opts.model,
+		size: opts.size,
+		seconds: opts.seconds,
+		characters: normalizeCharacterRefs(opts.character),
+	});
+
+	return mergeObjects(
+		parseJsonObject(opts.json),
+		firstClass,
+		parseParamAssignments(opts.param),
+	);
+}
+
+function buildVideoRenderParams(opts: CliOptions): Record<string, unknown> {
+	const firstClass = compactObject({
+		model: opts.model,
+		size: opts.size,
+		seconds: opts.seconds,
+	});
+
+	return mergeObjects(
+		parseJsonObject(opts.json),
+		firstClass,
+		parseParamAssignments(opts.param),
+	);
+}
+
+function buildVideoListParams(opts: CliOptions): Record<string, unknown> {
+	if (opts.order && !["asc", "desc"].includes(opts.order)) {
+		throw new CliError("Video list --order must be asc or desc.", 2);
+	}
+	return compactObject({
+		limit: opts.limit,
+		after: opts.after,
+		order: opts.order,
+	});
+}
+
+function normalizeCharacterRefs(
+	value: string[] | string | undefined,
+): Array<{ id: string }> | undefined {
+	const values =
+		value === undefined ? [] : Array.isArray(value) ? value : [value];
+	const ids = values.map((item) => item.trim()).filter(Boolean);
+	return ids.length > 0 ? ids.map((id) => ({ id })) : undefined;
+}
+
+function normalizeVideoReferenceInputs(opts: CliOptions) {
+	const source =
+		opts.inputReferenceFileId !== undefined
+			? `file:${opts.inputReferenceFileId}`
+			: (opts.inputReferenceUrl ?? opts.inputReference);
+	if (!source) return [];
+	return [
+		{
+			role: "reference" as const,
+			source,
+		},
+	];
+}
+
+function normalizeVideoInputs(video: string | undefined) {
+	if (!video) return [];
+	return [
+		{
+			role: "video" as const,
+			source: video,
+		},
+	];
+}
+
+function videoLifecycleOptions(opts: CliOptions) {
+	return {
+		wait: opts.wait,
+		download: opts.download,
+		variants: parseVideoVariants(opts.variant),
+		pollIntervalMs:
+			opts.pollInterval === undefined
+				? undefined
+				: Math.max(0, opts.pollInterval * 1000),
+		timeoutMs:
+			opts.timeout === undefined ? undefined : Math.max(0, opts.timeout * 1000),
+	};
+}
+
+function parseVideoVariants(
+	value: string[] | string | undefined,
+): VideoDownloadVariant[] {
+	const values =
+		value === undefined ? [] : Array.isArray(value) ? value : [value];
+	const variants = values.length > 0 ? values : ["video"];
+	return variants.map((variant) => {
+		if (
+			variant === "video" ||
+			variant === "thumbnail" ||
+			variant === "spritesheet"
+		) {
+			return variant;
+		}
+		throw new CliError(
+			`Invalid video variant: ${variant}. Expected video, thumbnail, or spritesheet.`,
+			2,
+		);
+	});
+}
+
 async function runAndPrint(job: AssetJob, opts: CliOptions): Promise<void> {
 	const config = new Config();
 	const auth = new Auth();
@@ -604,14 +1057,44 @@ async function runAndPrint(job: AssetJob, opts: CliOptions): Promise<void> {
 		verbose: opts.verbose,
 		sidecar,
 	};
-	const result =
-		job.kind === "image.generate"
-			? await provider.runImageGenerate(job, context)
-			: job.kind === "image.edit"
-				? await provider.runImageEdit(job, context)
-				: await provider.runImageVariation(job, context);
+	const result = await runProviderJob(provider, job, context);
 
 	printResults(result, opts);
+}
+
+async function runProviderJob(
+	provider: ReturnType<typeof getProvider>,
+	job: AssetJob,
+	context: ProviderContext,
+): Promise<JobResult> {
+	switch (job.kind) {
+		case "image.generate":
+			return provider.runImageGenerate(job, context);
+		case "image.edit":
+			return provider.runImageEdit(job, context);
+		case "image.variation":
+			return provider.runImageVariation(job, context);
+		case "video.generate":
+			return provider.runVideoGenerate(job, context);
+		case "video.edit":
+			return provider.runVideoEdit(job, context);
+		case "video.extend":
+			return provider.runVideoExtend(job, context);
+		case "video.remix":
+			return provider.runVideoRemix(job, context);
+		case "video.status":
+			return provider.runVideoStatus(job, context);
+		case "video.download":
+			return provider.runVideoDownload(job, context);
+		case "video.list":
+			return provider.runVideoList(job, context);
+		case "video.delete":
+			return provider.runVideoDelete(job, context);
+		case "video.character.create":
+			return provider.runVideoCharacterCreate(job, context);
+		case "video.character.get":
+			return provider.runVideoCharacterGet(job, context);
+	}
 }
 
 function printResults(result: JobResult | JobResult[], opts: CliOptions): void {

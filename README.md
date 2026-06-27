@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version" />
 </p>
 
-Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image generation and editing today, plus the legacy OpenAI image variations endpoint when the authenticated project has access. The provider registry is designed for audio, video, and broader model marketplaces over time.
+Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image generation/editing and OpenAI video generation/editing today, plus the legacy OpenAI image variations endpoint when the authenticated project has access. The provider registry is designed for audio and broader model marketplaces over time.
 
 It is built for both developers and AI agents: predictable commands, parseable output, local auth profiles, YAML manifests, parallel execution, and a companion skill.
 
@@ -21,12 +21,16 @@ It is built for both developers and AI agents: predictable commands, parseable o
 | OpenAI image generation | Supported |
 | OpenAI image editing | Supported |
 | OpenAI image variations | Legacy endpoint; supported when available to the authenticated project |
+| OpenAI video generation | Supported |
+| OpenAI video editing/extensions | Supported |
+| OpenAI video downloads/library/characters | Supported |
 | Context images and masks | Supported |
+| Video references and source videos | Supported |
 | YAML/JSON batch manifests | Supported |
 | Dependency-aware parallel runs | Supported |
 | Agent instructions via `ploof learn` | Supported |
 | Additional providers | Planned |
-| Audio/video generation | Planned |
+| Audio generation | Planned |
 
 ## Install
 
@@ -67,6 +71,14 @@ ploof image edit \
   --mask assets/mask.png \
   --prompt "Replace the background with a clean marble countertop" \
   --out assets/edited.png
+
+# Generate and download a video
+ploof video generate \
+  --prompt "Wide tracking shot of a paper city at blue hour" \
+  --model sora-2 \
+  --size 1280x720 \
+  --seconds 4 \
+  --out assets/clip.mp4
 
 # Run a manifest
 ploof run assets.yaml --parallel 4
@@ -170,6 +182,71 @@ The plural alias also works:
 ploof image variations --image input.png --out variation.png
 ```
 
+## Video Generation
+
+OpenAI video generation uses the asynchronous Videos API. `ploof video generate` submits a job immediately. If you pass `--out` or `--download`, Ploof waits for completion and downloads the requested asset.
+
+```bash
+ploof video generate \
+  --provider openai \
+  --prompt "Wide tracking shot of a teal coupe on a desert highway" \
+  --model sora-2 \
+  --size 1280x720 \
+  --seconds 4 \
+  --out assets/clip.mp4 \
+  --output json
+```
+
+Useful generation flags:
+
+| Flag | Description |
+| --- | --- |
+| `--model <model>` | Video model, for example `sora-2` or `sora-2-pro` |
+| `--size <size>` | Output resolution, for example `1280x720` |
+| `--seconds <seconds>` | Clip or extension duration |
+| `--input-reference <path-or-url-or-file-id>` | Image reference for the first frame |
+| `--input-reference-file-id <id>` | OpenAI uploaded image file id |
+| `--input-reference-url <url>` | Image URL or data URL reference |
+| `--character <id>` | Reusable character id; repeat for multiple characters |
+| `--wait` | Poll until the job reaches a terminal status |
+| `--download` | Download after waiting |
+| `--variant <variant>` | `video`, `thumbnail`, or `spritesheet` |
+| `--poll-interval <seconds>` | Polling interval while waiting |
+| `--timeout <seconds>` | Maximum wait time |
+| `--param key=value` | Provider-specific pass-through parameter |
+| `--json '{...}'` | Provider-specific JSON object |
+
+If you omit `--model`, Ploof defaults OpenAI video generation to `sora-2`.
+
+## Video Editing And Library
+
+```bash
+ploof video edit \
+  --video-id video_abc123 \
+  --prompt "Shift the palette to teal and rust" \
+  --out assets/edit.mp4
+
+ploof video extend \
+  --video-id video_abc123 \
+  --prompt "Continue as the camera rises over the rooftops" \
+  --seconds 4 \
+  --out assets/extended.mp4
+
+ploof video download video_abc123 --variant thumbnail --out assets/thumb.webp
+ploof video status video_abc123 --output json
+ploof video list --limit 20 --output json
+ploof video delete video_abc123
+```
+
+OpenAI video edits accept either `--video-id <id>` for an existing completed OpenAI video or `--video <path>` for an uploaded source video when the authenticated project is eligible for that workflow. Extensions accept a source video id or upload, plus a prompt and `--seconds`.
+
+Reusable character commands:
+
+```bash
+ploof video character create --name Mossy --video character.mp4 --output json
+ploof video character get char_abc123 --output json
+```
+
 ## Batch Manifests
 
 ```yaml
@@ -205,6 +282,18 @@ tasks:
       images:
         - task: base
     output: assets/variation.png
+
+  - id: clip
+    kind: video.generate
+    provider: openai
+    prompt: "Slow dolly shot through a miniature paper city"
+    params:
+      model: sora-2
+      size: 1280x720
+      seconds: "4"
+    wait: true
+    download: true
+    output: assets/clip.mp4
 ```
 
 Run it:
@@ -283,7 +372,7 @@ bun run build
 npm pack --dry-run
 ```
 
-The default test suite includes mocked OpenAI end-to-end tests. Those tests run real `ploof` CLI commands against a local mock OpenAI server and verify generated files, edit uploads, sidecar metadata, and dependency-aware manifests without spending API credits.
+The default test suite includes mocked OpenAI end-to-end tests. Those tests run real `ploof` CLI commands against a local mock OpenAI server and verify generated files, edit uploads, video job polling/downloads, sidecar metadata, and dependency-aware manifests without spending API credits.
 
 Live OpenAI tests are opt-in only:
 

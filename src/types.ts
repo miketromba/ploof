@@ -1,6 +1,21 @@
 export type ProviderId = "openai" | string;
 
-export type OperationKind = "image.generate" | "image.edit" | "image.variation";
+export type OperationKind =
+	| "image.generate"
+	| "image.edit"
+	| "image.variation"
+	| "video.generate"
+	| "video.edit"
+	| "video.extend"
+	| "video.remix"
+	| "video.status"
+	| "video.download"
+	| "video.list"
+	| "video.delete"
+	| "video.character.create"
+	| "video.character.get";
+
+export type VideoDownloadVariant = "video" | "thumbnail" | "spritesheet";
 
 export type AssetRole =
 	| "image"
@@ -59,7 +74,97 @@ export interface ImageVariationJob extends BaseJob {
 	inputs: AssetInput[];
 }
 
-export type AssetJob = ImageGenerateJob | ImageEditJob | ImageVariationJob;
+export interface VideoGenerateJob extends BaseJob {
+	kind: "video.generate";
+	prompt: string;
+	inputs: AssetInput[];
+	wait?: boolean;
+	download?: boolean;
+	variants?: VideoDownloadVariant[];
+	pollIntervalMs?: number;
+	timeoutMs?: number;
+}
+
+export interface VideoEditJob extends BaseJob {
+	kind: "video.edit";
+	prompt: string;
+	videoId?: string;
+	inputs: AssetInput[];
+	wait?: boolean;
+	download?: boolean;
+	variants?: VideoDownloadVariant[];
+	pollIntervalMs?: number;
+	timeoutMs?: number;
+}
+
+export interface VideoExtendJob extends BaseJob {
+	kind: "video.extend";
+	prompt: string;
+	videoId?: string;
+	inputs: AssetInput[];
+	wait?: boolean;
+	download?: boolean;
+	variants?: VideoDownloadVariant[];
+	pollIntervalMs?: number;
+	timeoutMs?: number;
+}
+
+export interface VideoRemixJob extends BaseJob {
+	kind: "video.remix";
+	prompt: string;
+	videoId: string;
+	wait?: boolean;
+	download?: boolean;
+	variants?: VideoDownloadVariant[];
+	pollIntervalMs?: number;
+	timeoutMs?: number;
+}
+
+export interface VideoStatusJob extends BaseJob {
+	kind: "video.status";
+	videoId: string;
+}
+
+export interface VideoDownloadJob extends BaseJob {
+	kind: "video.download";
+	videoId: string;
+	variants: VideoDownloadVariant[];
+}
+
+export interface VideoListJob extends BaseJob {
+	kind: "video.list";
+}
+
+export interface VideoDeleteJob extends BaseJob {
+	kind: "video.delete";
+	videoId: string;
+}
+
+export interface VideoCharacterCreateJob extends BaseJob {
+	kind: "video.character.create";
+	name: string;
+	inputs: AssetInput[];
+}
+
+export interface VideoCharacterGetJob extends BaseJob {
+	kind: "video.character.get";
+	characterId: string;
+}
+
+export type AssetJob =
+	| ImageGenerateJob
+	| ImageEditJob
+	| ImageVariationJob
+	| VideoGenerateJob
+	| VideoEditJob
+	| VideoExtendJob
+	| VideoRemixJob
+	| VideoStatusJob
+	| VideoDownloadJob
+	| VideoListJob
+	| VideoDeleteJob
+	| VideoCharacterCreateJob
+	| VideoCharacterGetJob;
 
 export interface JobResult {
 	id?: string;
@@ -80,6 +185,40 @@ export interface Provider {
 	runImageEdit(job: ImageEditJob, context: ProviderContext): Promise<JobResult>;
 	runImageVariation(
 		job: ImageVariationJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runVideoGenerate(
+		job: VideoGenerateJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runVideoEdit(job: VideoEditJob, context: ProviderContext): Promise<JobResult>;
+	runVideoExtend(
+		job: VideoExtendJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runVideoRemix(
+		job: VideoRemixJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runVideoStatus(
+		job: VideoStatusJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runVideoDownload(
+		job: VideoDownloadJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runVideoList(job: VideoListJob, context: ProviderContext): Promise<JobResult>;
+	runVideoDelete(
+		job: VideoDeleteJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runVideoCharacterCreate(
+		job: VideoCharacterCreateJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runVideoCharacterGet(
+		job: VideoCharacterGetJob,
 		context: ProviderContext,
 	): Promise<JobResult>;
 }

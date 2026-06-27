@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import {
 	assetToUploadable,
 	downloadToFile,
@@ -12,7 +12,30 @@ import type {
 	JobResult,
 	Provider,
 	ProviderContext,
+	VideoCharacterCreateJob,
+	VideoCharacterGetJob,
+	VideoDeleteJob,
+	VideoDownloadJob,
+	VideoEditJob,
+	VideoExtendJob,
+	VideoGenerateJob,
+	VideoListJob,
+	VideoRemixJob,
+	VideoStatusJob,
 } from "../types";
+import { createOpenAIClient } from "./openai-client";
+import {
+	runOpenAIVideoCharacterCreate,
+	runOpenAIVideoCharacterGet,
+	runOpenAIVideoDelete,
+	runOpenAIVideoDownload,
+	runOpenAIVideoEdit,
+	runOpenAIVideoExtend,
+	runOpenAIVideoGenerate,
+	runOpenAIVideoList,
+	runOpenAIVideoRemix,
+	runOpenAIVideoStatus,
+} from "./openai-video";
 
 const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-2";
 const DEFAULT_OPENAI_VARIATION_MODEL = "dall-e-2";
@@ -36,7 +59,21 @@ type ImagesApi = {
 
 export class OpenAIProvider implements Provider {
 	id = "openai";
-	capabilities = ["image.generate", "image.edit", "image.variation"] as const;
+	capabilities = [
+		"image.generate",
+		"image.edit",
+		"image.variation",
+		"video.generate",
+		"video.edit",
+		"video.extend",
+		"video.remix",
+		"video.status",
+		"video.download",
+		"video.list",
+		"video.delete",
+		"video.character.create",
+		"video.character.get",
+	] as const;
 
 	async runImageGenerate(
 		job: ImageGenerateJob,
@@ -180,6 +217,76 @@ export class OpenAIProvider implements Provider {
 
 		return result;
 	}
+
+	async runVideoGenerate(
+		job: VideoGenerateJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoGenerate(createClient(context), job, context);
+	}
+
+	async runVideoEdit(
+		job: VideoEditJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoEdit(createClient(context), job, context);
+	}
+
+	async runVideoExtend(
+		job: VideoExtendJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoExtend(createClient(context), job, context);
+	}
+
+	async runVideoRemix(
+		job: VideoRemixJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoRemix(createClient(context), job, context);
+	}
+
+	async runVideoStatus(
+		job: VideoStatusJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoStatus(createClient(context), job, context);
+	}
+
+	async runVideoDownload(
+		job: VideoDownloadJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoDownload(createClient(context), job, context);
+	}
+
+	async runVideoList(
+		job: VideoListJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoList(createClient(context), job, context);
+	}
+
+	async runVideoDelete(
+		job: VideoDeleteJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoDelete(createClient(context), job, context);
+	}
+
+	async runVideoCharacterCreate(
+		job: VideoCharacterCreateJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoCharacterCreate(createClient(context), job, context);
+	}
+
+	async runVideoCharacterGet(
+		job: VideoCharacterGetJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIVideoCharacterGet(createClient(context), job, context);
+	}
 }
 
 function applyOpenAIImageDefaults(
@@ -279,19 +386,7 @@ function isGptImage2Model(model: string): boolean {
 }
 
 function createClient(context: ProviderContext): OpenAI {
-	const credential = context.credential;
-	if (!credential.apiKey) {
-		throw new Error(
-			"No OpenAI API key found. Run 'ploof login openai --api-key <key>' or set PLOOF_OPENAI_API_KEY.",
-		);
-	}
-
-	return new OpenAI({
-		apiKey: credential.apiKey,
-		organization: credential.organization,
-		project: credential.project,
-		baseURL: credential.baseURL,
-	});
+	return createOpenAIClient(context);
 }
 
 function imageApi(client: OpenAI): ImagesApi {

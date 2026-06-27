@@ -1,7 +1,7 @@
 {
 	"name": "@miketromba/ploof",
-	"version": "0.1.5",
-	"description": "AI asset generation CLI for OpenAI images today, designed for multi-provider creative workflows.",
+	"version": "0.2.0",
+	"description": "AI asset generation CLI for OpenAI images and videos, designed for multi-provider creative workflows.",
 	"type": "module",
 	"bin": {
 		"ploof": "dist/ploof.js"
