@@ -223,8 +223,11 @@ ploof image variation \
   --size 1024x1024
 ```
 
-OpenAI variations default to `dall-e-2`, because the current OpenAI variations
-endpoint only supports that model. `ploof image variations` is an alias.
+OpenAI variations default to `dall-e-2`, because the legacy OpenAI variations
+endpoint only supports that model. This endpoint is supported when the
+authenticated project has DALL-E 2 variation access; if OpenAI returns a 404,
+use `ploof image edit` for image-to-image workflows. `ploof image variations`
+is an alias.
 
 ### Batch Run
 

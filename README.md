@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version" />
 </p>
 
-Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image generation, editing, and variations today, with a provider registry designed for audio, video, and broader model marketplaces over time.
+Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image generation and editing today, plus the legacy OpenAI image variations endpoint when the authenticated project has access. The provider registry is designed for audio, video, and broader model marketplaces over time.
 
 It is built for both developers and AI agents: predictable commands, parseable output, local auth profiles, YAML manifests, parallel execution, and a companion skill.
 
@@ -20,7 +20,7 @@ It is built for both developers and AI agents: predictable commands, parseable o
 | OpenAI auth profiles | Supported |
 | OpenAI image generation | Supported |
 | OpenAI image editing | Supported |
-| OpenAI image variations | Supported |
+| OpenAI image variations | Legacy endpoint; supported when available to the authenticated project |
 | Context images and masks | Supported |
 | YAML/JSON batch manifests | Supported |
 | Dependency-aware parallel runs | Supported |
@@ -154,7 +154,7 @@ Use repeated `--image` flags for context/reference images. Use `--mask` when the
 
 ## Image Variations
 
-OpenAI image variations use the legacy variations endpoint and default to `dall-e-2`, which is currently the only supported model for that endpoint.
+OpenAI image variations use the legacy variations endpoint and default to `dall-e-2`, which is currently the only supported model for that endpoint. If OpenAI returns a 404 for this command, use `ploof image edit` for image-to-image workflows or try a profile/project with DALL-E 2 variation access.
 
 ```bash
 ploof image variation \

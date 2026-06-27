@@ -39,7 +39,7 @@ async function runCli(args: string[], env: Record<string, string>) {
 	return { stdout, stderr, exitCode };
 }
 
-function startMockOpenAI() {
+function startMockOpenAI(options: { variationStatus?: number } = {}) {
 	const requests: CapturedRequest[] = [];
 	const server = Bun.serve({
 		port: 0,
@@ -62,6 +62,13 @@ function startMockOpenAI() {
 				)
 			) {
 				return Response.json({ error: "not found" }, { status: 404 });
+			}
+
+			if (
+				options.variationStatus &&
+				url.pathname.endsWith("/images/variations")
+			) {
+				return new Response(null, { status: options.variationStatus });
 			}
 
 			return Response.json({
@@ -277,6 +284,37 @@ describe("OpenAI mock end-to-end CLI", () => {
 		expect(requests).toHaveLength(1);
 		expect(requests[0]?.path).toBe("/v1/images/variations");
 		expect(requests[0]?.contentType).toContain("multipart/form-data");
+	});
+
+	test("explains OpenAI variation 404s", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
+		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-variation-"));
+		const { baseURL, requests } = startMockOpenAI({ variationStatus: 404 });
+		const input = join(dir, "input.png");
+		const output = join(dir, "variation.png");
+		writeFileSync(input, Buffer.from(PNG_1X1_BASE64, "base64"));
+
+		const result = await runCli(
+			[
+				"image",
+				"variation",
+				"--image",
+				input,
+				"--out",
+				output,
+				"--output",
+				"json",
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(result.exitCode).toBe(1);
+		expect(result.stdout).toBe("");
+		expect(result.stderr).toContain("OpenAI image variations returned 404");
+		expect(result.stderr).toContain("only supports dall-e-2");
+		expect(existsSync(output)).toBe(false);
+		expect(requests).toHaveLength(1);
+		expect(requests[0]?.path).toBe("/v1/images/variations");
 	});
 
 	test("runs a dependency-aware manifest against the provider", async () => {

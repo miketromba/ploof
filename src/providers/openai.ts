@@ -49,7 +49,9 @@ export class OpenAIProvider implements Provider {
 		});
 		validateOpenAIImageParams("image.generate", params);
 
-		const response = await imageApi(client).generate(params);
+		const response = await callOpenAIImageApi("image.generate", () =>
+			imageApi(client).generate(params),
+		);
 		const outputs = await persistImageResponse({
 			response,
 			output: job.output,
@@ -102,7 +104,9 @@ export class OpenAIProvider implements Provider {
 		});
 		validateOpenAIImageParams("image.edit", params);
 
-		const response = await imageApi(client).edit(params);
+		const response = await callOpenAIImageApi("image.edit", () =>
+			imageApi(client).edit(params),
+		);
 		const outputs = await persistImageResponse({
 			response,
 			output: job.output,
@@ -147,7 +151,9 @@ export class OpenAIProvider implements Provider {
 		});
 		validateOpenAIImageParams("image.variation", params);
 
-		const response = await imageApi(client).createVariation(params);
+		const response = await callOpenAIImageApi("image.variation", () =>
+			imageApi(client).createVariation(params),
+		);
 		const outputs = await persistImageResponse({
 			response,
 			output: job.output,
@@ -220,6 +226,41 @@ function validateOpenAIImageParams(
 			);
 		}
 	}
+}
+
+async function callOpenAIImageApi(
+	kind: "image.generate" | "image.edit" | "image.variation",
+	operation: () => Promise<unknown> | AsyncIterable<unknown>,
+): Promise<unknown> {
+	try {
+		return await operation();
+	} catch (error) {
+		throw enrichOpenAIImageError(kind, error);
+	}
+}
+
+function enrichOpenAIImageError(
+	kind: "image.generate" | "image.edit" | "image.variation",
+	error: unknown,
+): Error {
+	const status = getErrorStatus(error);
+	if (kind === "image.variation" && status === 404) {
+		const enriched = new Error(
+			"OpenAI image variations returned 404. The variations endpoint is legacy and only supports dall-e-2; this usually means the current API key or project cannot access that endpoint. Use `ploof image edit` for image-to-image workflows, or try a profile/project with DALL-E 2 variation access.",
+		);
+		(enriched as Error & { cause?: unknown }).cause = error;
+		return enriched;
+	}
+
+	if (error instanceof Error) return error;
+	return new Error(String(error));
+}
+
+function getErrorStatus(error: unknown): number | undefined {
+	if (!error || typeof error !== "object") return undefined;
+	const candidate = error as Record<string, unknown>;
+	const status = candidate.status ?? candidate.statusCode;
+	return typeof status === "number" ? status : undefined;
 }
 
 function sidecarParams(
