@@ -8,6 +8,7 @@ describe("learn", () => {
 		expect(output).toContain("Package name: `@miketromba/ploof`");
 		expect(output).toContain("There is no `ploof auth` namespace");
 		expect(output).toContain("ploof image generate");
+		expect(output).toContain("ploof image variation");
 		expect(output).toContain("Important: `--format png`");
 		expect(output).toContain("Parseable result shape");
 		expect(output).toContain("ploof run assets.yaml");

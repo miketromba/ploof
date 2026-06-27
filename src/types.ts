@@ -1,6 +1,6 @@
 export type ProviderId = "openai" | string;
 
-export type OperationKind = "image.generate" | "image.edit";
+export type OperationKind = "image.generate" | "image.edit" | "image.variation";
 
 export type AssetRole =
 	| "image"
@@ -37,7 +37,7 @@ export interface BaseJob {
 	kind: OperationKind;
 	provider: ProviderId;
 	profile?: string;
-	prompt: string;
+	prompt?: string;
 	params?: Record<string, unknown>;
 	output?: string;
 	sidecar?: boolean;
@@ -45,14 +45,21 @@ export interface BaseJob {
 
 export interface ImageGenerateJob extends BaseJob {
 	kind: "image.generate";
+	prompt: string;
 }
 
 export interface ImageEditJob extends BaseJob {
 	kind: "image.edit";
+	prompt: string;
 	inputs: AssetInput[];
 }
 
-export type AssetJob = ImageGenerateJob | ImageEditJob;
+export interface ImageVariationJob extends BaseJob {
+	kind: "image.variation";
+	inputs: AssetInput[];
+}
+
+export type AssetJob = ImageGenerateJob | ImageEditJob | ImageVariationJob;
 
 export interface JobResult {
 	id?: string;
@@ -71,6 +78,10 @@ export interface Provider {
 		context: ProviderContext,
 	): Promise<JobResult>;
 	runImageEdit(job: ImageEditJob, context: ProviderContext): Promise<JobResult>;
+	runImageVariation(
+		job: ImageVariationJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
 }
 
 export type OutputFormat = "table" | "compact" | "json" | "jsonl";

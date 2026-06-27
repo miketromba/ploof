@@ -86,6 +86,7 @@ Initial capabilities:
 
 - `image.generate`
 - `image.edit`
+- `image.variation`
 
 Future providers should be added through the provider registry without changing the manifest model.
 
@@ -176,6 +177,8 @@ ploof config reset
 
 ### Image Generation
 
+OpenAI image generation and editing default to `gpt-image-2` when no model is specified.
+
 ```bash
 ploof image generate \
   --provider openai \
@@ -209,6 +212,20 @@ ploof image edit \
 
 The CLI must support multiple context images where the provider supports them.
 
+### Image Variations
+
+```bash
+ploof image variation \
+  --provider openai \
+  --image input.png \
+  --out assets/variation.png \
+  --model dall-e-2 \
+  --size 1024x1024
+```
+
+OpenAI variations default to `dall-e-2`, because the current OpenAI variations
+endpoint only supports that model. `ploof image variations` is an alias.
+
 ### Batch Run
 
 ```bash
@@ -241,6 +258,15 @@ tasks:
       mask: ./mask.png
     prompt: "Add a premium background"
     output: assets/final.png
+
+  - id: variation
+    kind: image.variation
+    provider: openai
+    needs: [base]
+    inputs:
+      images:
+        - task: base
+    output: assets/variation.png
 ```
 
 ## Asset Input Model
@@ -280,6 +306,7 @@ type Provider = {
   capabilities: ProviderCapability[]
   runImageGenerate(job, context): Promise<ProviderResult>
   runImageEdit(job, context): Promise<ProviderResult>
+  runImageVariation(job, context): Promise<ProviderResult>
 }
 ```
 
@@ -429,7 +456,7 @@ The initial complete implementation should include:
 - npm package scaffolding for `@miketromba/ploof`.
 - Build, test, typecheck, lint setup.
 - OpenAI auth profiles.
-- OpenAI image generate/edit.
+- OpenAI image generate/edit/variation.
 - Asset input normalization.
 - Manifest run with dependency-aware parallelism.
 - Output formats and sidecar metadata.

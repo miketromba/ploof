@@ -136,7 +136,7 @@ export async function downloadToFile(options: {
 export async function writeSidecar(
 	result: JobResult,
 	job: {
-		prompt: string;
+		prompt?: string;
 		params?: Record<string, unknown>;
 		sidecar?: boolean;
 	},

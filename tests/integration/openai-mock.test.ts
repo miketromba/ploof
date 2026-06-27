@@ -57,7 +57,8 @@ function startMockOpenAI() {
 				request.method !== "POST" ||
 				!(
 					url.pathname.endsWith("/images/generations") ||
-					url.pathname.endsWith("/images/edits")
+					url.pathname.endsWith("/images/edits") ||
+					url.pathname.endsWith("/images/variations")
 				)
 			) {
 				return Response.json({ error: "not found" }, { status: 404 });
@@ -140,6 +141,62 @@ describe("OpenAI mock end-to-end CLI", () => {
 		expect(requests[0]?.body).toContain("mock red cube");
 	});
 
+	test("defaults OpenAI image generation to gpt-image-2", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
+		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-default-model-"));
+		const { baseURL, requests } = startMockOpenAI();
+		const output = join(dir, "base.png");
+
+		const result = await runCli(
+			[
+				"image",
+				"generate",
+				"--prompt",
+				"mock red cube",
+				"--out",
+				output,
+				"--output",
+				"json",
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr).toBe("");
+
+		const sidecar = JSON.parse(readFileSync(`${output}.json`, "utf-8"));
+		expect(sidecar.params.model).toBe("gpt-image-2");
+
+		expect(requests).toHaveLength(1);
+		expect(requests[0]?.body).toContain('"model":"gpt-image-2"');
+	});
+
+	test("rejects unsupported gpt-image-2 transparent backgrounds before API calls", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
+		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-validation-"));
+		const { baseURL, requests } = startMockOpenAI();
+
+		const result = await runCli(
+			[
+				"image",
+				"generate",
+				"--prompt",
+				"mock transparent cube",
+				"--background",
+				"transparent",
+				"--out",
+				join(dir, "base.png"),
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain(
+			"`background=transparent` is not supported by gpt-image-2",
+		);
+		expect(requests).toHaveLength(0);
+	});
+
 	test("edits an image with multipart upload and writes output", async () => {
 		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
 		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-edit-"));
@@ -183,6 +240,45 @@ describe("OpenAI mock end-to-end CLI", () => {
 		expect(requests[0]?.body).toContain("turn it blue");
 	});
 
+	test("creates image variations", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
+		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-variation-"));
+		const { baseURL, requests } = startMockOpenAI();
+		const input = join(dir, "input.png");
+		const output = join(dir, "variation.png");
+		writeFileSync(input, Buffer.from(PNG_1X1_BASE64, "base64"));
+
+		const result = await runCli(
+			[
+				"image",
+				"variation",
+				"--image",
+				input,
+				"--out",
+				output,
+				"--output",
+				"json",
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr).toBe("");
+		expect(existsSync(output)).toBe(true);
+		expect(existsSync(`${output}.json`)).toBe(true);
+
+		const cliJson = JSON.parse(result.stdout);
+		expect(cliJson.kind).toBe("image.variation");
+		expect(cliJson.outputs).toEqual([output]);
+
+		const sidecar = JSON.parse(readFileSync(`${output}.json`, "utf-8"));
+		expect(sidecar.params.model).toBe("dall-e-2");
+
+		expect(requests).toHaveLength(1);
+		expect(requests[0]?.path).toBe("/v1/images/variations");
+		expect(requests[0]?.contentType).toContain("multipart/form-data");
+	});
+
 	test("runs a dependency-aware manifest against the provider", async () => {
 		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
 		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-manifest-"));
@@ -190,6 +286,7 @@ describe("OpenAI mock end-to-end CLI", () => {
 		const manifest = join(dir, "assets.yaml");
 		const base = join(dir, "assets/base.png");
 		const edit = join(dir, "assets/edit.png");
+		const variation = join(dir, "assets/variation.png");
 		writeFileSync(
 			manifest,
 			[
@@ -214,6 +311,14 @@ describe("OpenAI mock end-to-end CLI", () => {
 				"      images:",
 				"        - task: base",
 				"    output: assets/edit.png",
+				"  - id: variation",
+				"    kind: image.variation",
+				"    provider: openai",
+				"    needs: [base]",
+				"    inputs:",
+				"      images:",
+				"        - task: base",
+				"    output: assets/variation.png",
 			].join("\n"),
 		);
 
@@ -226,17 +331,21 @@ describe("OpenAI mock end-to-end CLI", () => {
 		expect(result.stderr).toBe("");
 		expect(existsSync(base)).toBe(true);
 		expect(existsSync(edit)).toBe(true);
+		expect(existsSync(variation)).toBe(true);
 		expect(existsSync(`${base}.json`)).toBe(true);
 		expect(existsSync(`${edit}.json`)).toBe(true);
+		expect(existsSync(`${variation}.json`)).toBe(true);
 
 		const cliJson = JSON.parse(result.stdout);
 		expect(cliJson.map((item: { id: string }) => item.id)).toEqual([
 			"base",
 			"edit",
+			"variation",
 		]);
 		expect(requests.map((request) => request.path)).toEqual([
 			"/v1/images/generations",
 			"/v1/images/edits",
+			"/v1/images/variations",
 		]);
 	});
 });

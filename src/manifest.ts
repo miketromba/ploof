@@ -19,11 +19,11 @@ const inputRefSchema = z.union([
 
 const taskSchema = z.object({
 	id: z.string(),
-	kind: z.enum(["image.generate", "image.edit"]),
+	kind: z.enum(["image.generate", "image.edit", "image.variation"]),
 	provider: z.string().default("openai"),
 	profile: z.string().optional(),
 	needs: z.array(z.string()).default([]),
-	prompt: z.string(),
+	prompt: z.string().optional(),
 	params: z.record(z.string(), z.unknown()).default({}),
 	output: z.string().optional(),
 	sidecar: z.boolean().optional(),
@@ -140,6 +140,12 @@ function validateManifest(manifest: Manifest): void {
 		ids.add(task.id);
 	}
 	for (const task of manifest.tasks) {
+		if (task.kind !== "image.variation" && !task.prompt) {
+			throw new Error(`Task ${task.id} requires a prompt.`);
+		}
+		if (task.kind === "image.variation" && !task.inputs?.images?.length) {
+			throw new Error(`Task ${task.id} requires inputs.images.`);
+		}
 		for (const need of task.needs) {
 			if (!ids.has(need)) {
 				throw new Error(`Task ${task.id} depends on unknown task ${need}.`);
@@ -171,7 +177,7 @@ async function executeTask(
 		kind: task.kind as OperationKind,
 		provider: task.provider,
 		profile: task.profile,
-		prompt: task.prompt,
+		prompt: task.prompt ?? "",
 		params: task.params,
 		output: task.output
 			? resolveMaybe(options.baseDir, task.output)
@@ -187,6 +193,13 @@ async function executeTask(
 	}
 
 	const inputs = resolveInputs(task, options);
+	if (task.kind === "image.variation") {
+		return provider.runImageVariation(
+			{ ...base, kind: "image.variation", inputs },
+			{ credential, verbose: options.verbose, sidecar: base.sidecar },
+		);
+	}
+
 	return provider.runImageEdit(
 		{ ...base, kind: "image.edit", inputs },
 		{ credential, verbose: options.verbose, sidecar: base.sidecar },

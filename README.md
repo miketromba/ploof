@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version" />
 </p>
 
-Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image generation and editing today, with a provider registry designed for audio, video, and broader model marketplaces over time.
+Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image generation, editing, and variations today, with a provider registry designed for audio, video, and broader model marketplaces over time.
 
 It is built for both developers and AI agents: predictable commands, parseable output, local auth profiles, YAML manifests, parallel execution, and a companion skill.
 
@@ -20,6 +20,7 @@ It is built for both developers and AI agents: predictable commands, parseable o
 | OpenAI auth profiles | Supported |
 | OpenAI image generation | Supported |
 | OpenAI image editing | Supported |
+| OpenAI image variations | Supported |
 | Context images and masks | Supported |
 | YAML/JSON batch manifests | Supported |
 | Dependency-aware parallel runs | Supported |
@@ -58,7 +59,6 @@ ploof login openai --api-key <your-api-key>
 ploof image generate \
   --prompt "Studio product photo of a matte black water bottle" \
   --out assets/hero.png \
-  --model gpt-image-2 \
   --size 1024x1024
 
 # Edit an image with context
@@ -108,6 +108,8 @@ ploof login openai \
 
 ## Image Generation
 
+OpenAI image generation and editing default to `gpt-image-2` when `--model` is omitted.
+
 ```bash
 ploof image generate \
   --provider openai \
@@ -150,6 +152,24 @@ ploof image edit \
 
 Use repeated `--image` flags for context/reference images. Use `--mask` when the selected provider/model supports masked edits.
 
+## Image Variations
+
+OpenAI image variations use the legacy variations endpoint and default to `dall-e-2`, which is currently the only supported model for that endpoint.
+
+```bash
+ploof image variation \
+  --provider openai \
+  --image input.png \
+  --out variation.png \
+  --size 1024x1024
+```
+
+The plural alias also works:
+
+```bash
+ploof image variations --image input.png --out variation.png
+```
+
 ## Batch Manifests
 
 ```yaml
@@ -176,6 +196,15 @@ tasks:
       mask: ./mask.png
     prompt: "Add a premium background"
     output: assets/final.png
+
+  - id: variation
+    kind: image.variation
+    provider: openai
+    needs: [base]
+    inputs:
+      images:
+        - task: base
+    output: assets/variation.png
 ```
 
 Run it:

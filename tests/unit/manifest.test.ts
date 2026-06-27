@@ -28,16 +28,29 @@ describe("manifest", () => {
 				"      images:",
 				"        - task: base",
 				"    output: assets/edit.png",
+				"  - id: variation",
+				"    kind: image.variation",
+				"    provider: openai",
+				"    needs: [base]",
+				"    inputs:",
+				"      images:",
+				"        - task: base",
+				"    output: assets/variation.png",
 			].join("\n"),
 		);
 
 		const manifest = await parseManifest(manifestPath);
-		expect(manifest.tasks.map((task) => task.id)).toEqual(["base", "edit"]);
+		expect(manifest.tasks.map((task) => task.id)).toEqual([
+			"base",
+			"edit",
+			"variation",
+		]);
 
 		const results = await runManifest(manifestPath, { dryRun: true });
-		expect(results).toHaveLength(2);
+		expect(results).toHaveLength(3);
 		expect(results[0]?.metadata).toEqual({ dryRun: true, needs: [] });
 		expect(results[1]?.metadata).toEqual({ dryRun: true, needs: ["base"] });
+		expect(results[2]?.metadata).toEqual({ dryRun: true, needs: ["base"] });
 	});
 
 	test("rejects unknown dependencies", async () => {

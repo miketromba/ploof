@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -21,6 +21,13 @@ async function runCli(args: string[], env: Record<string, string> = {}) {
 }
 
 describe("ploof CLI", () => {
+	test("prints the package version", async () => {
+		const packageJson = JSON.parse(readFileSync("package.json", "utf-8"));
+		const result = await runCli(["--version"]);
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout.trim()).toBe(packageJson.version);
+	});
+
 	test("prints help", async () => {
 		const result = await runCli(["--help"]);
 		expect(result.exitCode).toBe(0);

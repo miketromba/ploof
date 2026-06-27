@@ -13,11 +13,12 @@ import type {
 	AssetJob,
 	ImageEditJob,
 	ImageGenerateJob,
+	ImageVariationJob,
 	JobResult,
 	OutputOptions,
 } from "./types";
 
-const VERSION = "0.1.1";
+const VERSION = "0.1.4";
 
 type CliOptions = Record<string, unknown> & {
 	apiKey?: string;
@@ -28,7 +29,7 @@ type CliOptions = Record<string, unknown> & {
 	dryRun?: boolean;
 	fields?: string;
 	format?: string;
-	image?: string[];
+	image?: string[] | string;
 	inputFidelity?: string;
 	json?: string;
 	mask?: string;
@@ -429,6 +430,34 @@ function registerImage(program: Command): void {
 			await runAndPrint(job, allOpts);
 		}),
 	);
+
+	const variationCmd = imageCmd
+		.command("variation")
+		.alias("variations")
+		.description("Create image variations")
+		.requiredOption("--image <path>", "Input image path or URL")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--out <path>", "Output file or directory");
+
+	addOpenAIImageVariationOptions(variationCmd);
+
+	variationCmd.action(
+		wrapAction(async (opts: CliOptions, command: Command) => {
+			const allOpts = { ...command.optsWithGlobals(), ...opts };
+			const params = buildImageVariationParams(allOpts);
+			const image = typeof allOpts.image === "string" ? allOpts.image : "";
+			const job: ImageVariationJob = {
+				kind: "image.variation",
+				provider: allOpts.provider ?? "openai",
+				profile: allOpts.profile,
+				output: allOpts.out,
+				params,
+				inputs: normalizeImageInputs(image, undefined),
+			};
+			await runAndPrint(job, allOpts);
+		}),
+	);
 }
 
 function registerRun(program: Command): void {
@@ -505,6 +534,17 @@ function addOpenAIImageOptions(command: Command): void {
 		.option("--json <object>", "Provider-specific JSON object");
 }
 
+function addOpenAIImageVariationOptions(command: Command): void {
+	command
+		.option("--model <model>", "Image model")
+		.option("--size <size>", "Image size")
+		.option("--n <count>", "Number of images", parsePositiveInt)
+		.option("--response-format <format>", "Provider response format")
+		.option("--user <user>", "End-user identifier")
+		.option("--param <key=value>", "Provider-specific parameter", collect, [])
+		.option("--json <object>", "Provider-specific JSON object");
+}
+
 function buildImageParams(opts: CliOptions): Record<string, unknown> {
 	const firstClass = compactObject({
 		model: opts.model,
@@ -530,6 +570,22 @@ function buildImageParams(opts: CliOptions): Record<string, unknown> {
 	);
 }
 
+function buildImageVariationParams(opts: CliOptions): Record<string, unknown> {
+	const firstClass = compactObject({
+		model: opts.model,
+		size: opts.size,
+		n: opts.n,
+		response_format: opts.responseFormat,
+		user: opts.user,
+	});
+
+	return mergeObjects(
+		parseJsonObject(opts.json),
+		firstClass,
+		parseParamAssignments(opts.param),
+	);
+}
+
 async function runAndPrint(job: AssetJob, opts: CliOptions): Promise<void> {
 	const config = new Config();
 	const auth = new Auth();
@@ -543,18 +599,17 @@ async function runAndPrint(job: AssetJob, opts: CliOptions): Promise<void> {
 	}
 
 	const sidecar = config.get("sidecar");
+	const context = {
+		credential,
+		verbose: opts.verbose,
+		sidecar,
+	};
 	const result =
 		job.kind === "image.generate"
-			? await provider.runImageGenerate(job, {
-					credential,
-					verbose: opts.verbose,
-					sidecar,
-				})
-			: await provider.runImageEdit(job, {
-					credential,
-					verbose: opts.verbose,
-					sidecar,
-				});
+			? await provider.runImageGenerate(job, context)
+			: job.kind === "image.edit"
+				? await provider.runImageEdit(job, context)
+				: await provider.runImageVariation(job, context);
 
 	printResults(result, opts);
 }
