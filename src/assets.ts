@@ -155,6 +155,20 @@ export async function saveResponseToFile(options: {
 	return saveAssetData({ ...options, data });
 }
 
+export async function saveTextData(options: {
+	text: string;
+	output?: string;
+	index: number;
+	total: number;
+	format: string;
+	defaultName: string;
+}): Promise<string> {
+	return saveAssetData({
+		...options,
+		data: Buffer.from(options.text),
+	});
+}
+
 export async function writeSidecar(
 	result: JobResult,
 	job: {
@@ -192,8 +206,23 @@ export function mimeFromPath(path: string): string | undefined {
 			return "image/gif";
 		case ".mp3":
 			return "audio/mpeg";
+		case ".mpeg":
+		case ".mpga":
+			return "audio/mpeg";
+		case ".m4a":
+			return "audio/mp4";
 		case ".wav":
 			return "audio/wav";
+		case ".flac":
+			return "audio/flac";
+		case ".ogg":
+			return "audio/ogg";
+		case ".opus":
+			return "audio/opus";
+		case ".aac":
+			return "audio/aac";
+		case ".webm":
+			return "audio/webm";
 		case ".mp4":
 			return "video/mp4";
 		case ".mov":
@@ -268,6 +297,22 @@ function extensionForMime(mime: string | undefined): string {
 			return ".mp4";
 		case "video/quicktime":
 			return ".mov";
+		case "audio/mpeg":
+			return ".mp3";
+		case "audio/mp4":
+			return ".m4a";
+		case "audio/wav":
+			return ".wav";
+		case "audio/flac":
+			return ".flac";
+		case "audio/ogg":
+			return ".ogg";
+		case "audio/opus":
+			return ".opus";
+		case "audio/aac":
+			return ".aac";
+		case "audio/webm":
+			return ".webm";
 		default:
 			return "";
 	}

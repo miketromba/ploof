@@ -13,7 +13,10 @@ export type OperationKind =
 	| "video.list"
 	| "video.delete"
 	| "video.character.create"
-	| "video.character.get";
+	| "video.character.get"
+	| "audio.generate"
+	| "audio.transcribe"
+	| "audio.translate";
 
 export type VideoDownloadVariant = "video" | "thumbnail" | "spritesheet";
 
@@ -151,6 +154,21 @@ export interface VideoCharacterGetJob extends BaseJob {
 	characterId: string;
 }
 
+export interface AudioGenerateJob extends BaseJob {
+	kind: "audio.generate";
+	input: string;
+}
+
+export interface AudioTranscribeJob extends BaseJob {
+	kind: "audio.transcribe";
+	inputs: AssetInput[];
+}
+
+export interface AudioTranslateJob extends BaseJob {
+	kind: "audio.translate";
+	inputs: AssetInput[];
+}
+
 export type AssetJob =
 	| ImageGenerateJob
 	| ImageEditJob
@@ -164,7 +182,10 @@ export type AssetJob =
 	| VideoListJob
 	| VideoDeleteJob
 	| VideoCharacterCreateJob
-	| VideoCharacterGetJob;
+	| VideoCharacterGetJob
+	| AudioGenerateJob
+	| AudioTranscribeJob
+	| AudioTranslateJob;
 
 export interface JobResult {
 	id?: string;
@@ -219,6 +240,18 @@ export interface Provider {
 	): Promise<JobResult>;
 	runVideoCharacterGet(
 		job: VideoCharacterGetJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runAudioGenerate(
+		job: AudioGenerateJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runAudioTranscribe(
+		job: AudioTranscribeJob,
+		context: ProviderContext,
+	): Promise<JobResult>;
+	runAudioTranslate(
+		job: AudioTranslateJob,
 		context: ProviderContext,
 	): Promise<JobResult>;
 }

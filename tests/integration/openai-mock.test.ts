@@ -55,6 +55,9 @@ function startMockOpenAI(options: { variationStatus?: number } = {}) {
 				body,
 			});
 
+			const audioResponse = mockAudioResponse(request, url, body);
+			if (audioResponse) return audioResponse;
+
 			const videoResponse = mockVideoResponse(request, url);
 			if (videoResponse) return videoResponse;
 
@@ -97,6 +100,48 @@ function startMockOpenAI(options: { variationStatus?: number } = {}) {
 		requests,
 		baseURL: `http://127.0.0.1:${server.port}/v1`,
 	};
+}
+
+function mockAudioResponse(
+	request: Request,
+	url: URL,
+	body: string,
+): Response | undefined {
+	if (request.method === "POST" && url.pathname === "/v1/audio/speech") {
+		return new Response("mock-mp3-audio", {
+			headers: { "content-type": "audio/mpeg" },
+		});
+	}
+	if (
+		request.method === "POST" &&
+		url.pathname === "/v1/audio/transcriptions"
+	) {
+		if (body.includes('name="response_format"') && body.includes("text")) {
+			return new Response("mock transcript text", {
+				headers: { "content-type": "text/plain" },
+			});
+		}
+		return Response.json({
+			text: "mock transcript text",
+			usage: {
+				type: "tokens",
+				input_tokens: 1,
+				output_tokens: 2,
+				total_tokens: 3,
+			},
+		});
+	}
+	if (request.method === "POST" && url.pathname === "/v1/audio/translations") {
+		if (body.includes('name="response_format"') && body.includes("text")) {
+			return new Response("mock translated text", {
+				headers: { "content-type": "text/plain" },
+			});
+		}
+		return Response.json({
+			text: "mock translated text",
+		});
+	}
+	return undefined;
 }
 
 function mockVideoResponse(request: Request, url: URL): Response | undefined {
@@ -592,6 +637,160 @@ describe("OpenAI mock end-to-end CLI", () => {
 		expect(requests[4]?.search).toContain("order=asc");
 	});
 
+	test("generates speech audio and writes sidecar metadata", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
+		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-audio-"));
+		const { baseURL, requests } = startMockOpenAI();
+		const output = join(dir, "speech.mp3");
+
+		const result = await runCli(
+			[
+				"audio",
+				"generate",
+				"--text",
+				"hello from ploof",
+				"--model",
+				"gpt-4o-mini-tts",
+				"--voice",
+				"alloy",
+				"--format",
+				"mp3",
+				"--out",
+				output,
+				"--output",
+				"json",
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr).toBe("");
+		expect(readFileSync(output, "utf-8")).toBe("mock-mp3-audio");
+		expect(existsSync(`${output}.json`)).toBe(true);
+
+		const cliJson = JSON.parse(result.stdout);
+		expect(cliJson.kind).toBe("audio.generate");
+		expect(cliJson.outputs).toEqual([output]);
+		expect(cliJson.metadata.model).toBe("gpt-4o-mini-tts");
+		expect(cliJson.metadata.voice).toBe("alloy");
+
+		const sidecar = JSON.parse(readFileSync(`${output}.json`, "utf-8"));
+		expect(sidecar.params.input).toBe("hello from ploof");
+		expect(sidecar.params.response_format).toBe("mp3");
+		expect(requests[0]?.path).toBe("/v1/audio/speech");
+		expect(requests[0]?.body).toContain("hello from ploof");
+	});
+
+	test("rejects streaming audio transport for static asset outputs", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
+		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-audio-static-"));
+		const { baseURL, requests } = startMockOpenAI();
+
+		const speech = await runCli(
+			[
+				"audio",
+				"generate",
+				"--text",
+				"hello from ploof",
+				"--param",
+				"stream_format=sse",
+				"--out",
+				join(dir, "speech.mp3"),
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(speech.exitCode).toBe(1);
+		expect(speech.stderr).toContain("complete static audio files");
+
+		const audio = join(dir, "speech.mp3");
+		writeFileSync(audio, "mock source audio");
+		const transcript = await runCli(
+			[
+				"audio",
+				"transcribe",
+				"--audio",
+				audio,
+				"--param",
+				"stream=true",
+				"--out",
+				join(dir, "transcript.json"),
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(transcript.exitCode).toBe(1);
+		expect(transcript.stderr).toContain("complete static transcript assets");
+		expect(requests).toHaveLength(0);
+	});
+
+	test("transcribes and translates audio files", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
+		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-audio-process-"));
+		const { baseURL, requests } = startMockOpenAI();
+		const audio = join(dir, "speech.mp3");
+		const transcript = join(dir, "transcript.json");
+		const translation = join(dir, "translation.txt");
+		writeFileSync(audio, "mock source audio");
+
+		const transcribe = await runCli(
+			[
+				"audio",
+				"transcribe",
+				"--audio",
+				audio,
+				"--model",
+				"gpt-4o-mini-transcribe",
+				"--out",
+				transcript,
+				"--output",
+				"json",
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(transcribe.exitCode).toBe(0);
+		expect(transcribe.stderr).toBe("");
+		expect(readFileSync(transcript, "utf-8")).toContain("mock transcript text");
+		expect(existsSync(`${transcript}.json`)).toBe(true);
+		const transcribeJson = JSON.parse(transcribe.stdout);
+		expect(transcribeJson.kind).toBe("audio.transcribe");
+		expect(transcribeJson.metadata.text).toBe("mock transcript text");
+
+		const translate = await runCli(
+			[
+				"audio",
+				"translate",
+				"--audio",
+				audio,
+				"--model",
+				"whisper-1",
+				"--format",
+				"text",
+				"--out",
+				translation,
+				"--output",
+				"json",
+			],
+			testEnv(home, baseURL),
+		);
+
+		expect(translate.exitCode).toBe(0);
+		expect(translate.stderr).toBe("");
+		expect(readFileSync(translation, "utf-8")).toBe("mock translated text");
+		expect(existsSync(`${translation}.json`)).toBe(true);
+		const translateJson = JSON.parse(translate.stdout);
+		expect(translateJson.kind).toBe("audio.translate");
+		expect(translateJson.metadata.text).toBe("mock translated text");
+
+		expect(requests.map((request) => request.path)).toEqual([
+			"/v1/audio/transcriptions",
+			"/v1/audio/translations",
+		]);
+		expect(requests[0]?.contentType).toContain("multipart/form-data");
+		expect(requests[1]?.contentType).toContain("multipart/form-data");
+	});
+
 	test("runs a dependency-aware manifest against the provider", async () => {
 		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
 		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-manifest-"));
@@ -650,16 +849,18 @@ describe("OpenAI mock end-to-end CLI", () => {
 		expect(existsSync(`${variation}.json`)).toBe(true);
 
 		const cliJson = JSON.parse(result.stdout);
-		expect(cliJson.map((item: { id: string }) => item.id)).toEqual([
+		expect(cliJson.map((item: { id: string }) => item.id).sort()).toEqual([
 			"base",
 			"edit",
 			"variation",
 		]);
-		expect(requests.map((request) => request.path)).toEqual([
-			"/v1/images/generations",
-			"/v1/images/edits",
-			"/v1/images/variations",
-		]);
+		expect(requests[0]?.path).toBe("/v1/images/generations");
+		expect(
+			requests
+				.slice(1)
+				.map((request) => request.path)
+				.sort(),
+		).toEqual(["/v1/images/edits", "/v1/images/variations"]);
 	});
 
 	test("runs video generation tasks from manifests", async () => {
@@ -707,6 +908,64 @@ describe("OpenAI mock end-to-end CLI", () => {
 			"/v1/videos",
 			"/v1/videos/video_mock",
 			"/v1/videos/video_mock/content",
+		]);
+	});
+
+	test("runs audio generation and transcription tasks from manifests", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-openai-home-"));
+		const dir = mkdtempSync(join(tmpdir(), "ploof-openai-audio-manifest-"));
+		const { baseURL, requests } = startMockOpenAI();
+		const manifest = join(dir, "audio.yaml");
+		const speech = join(dir, "assets/speech.mp3");
+		const transcript = join(dir, "assets/transcript.json");
+		writeFileSync(
+			manifest,
+			[
+				"version: 1",
+				"parallel: 2",
+				"tasks:",
+				"  - id: speech",
+				"    kind: audio.generate",
+				"    provider: openai",
+				"    text: hello from manifest",
+				"    params:",
+				"      model: gpt-4o-mini-tts",
+				"      voice: alloy",
+				"      response_format: mp3",
+				"    output: assets/speech.mp3",
+				"  - id: transcript",
+				"    kind: audio.transcribe",
+				"    provider: openai",
+				"    needs: [speech]",
+				"    inputs:",
+				"      audio:",
+				"        task: speech",
+				"    params:",
+				"      model: gpt-4o-mini-transcribe",
+				"    output: assets/transcript.json",
+			].join("\n"),
+		);
+
+		const result = await runCli(
+			["run", manifest, "--parallel", "2", "--output", "json"],
+			testEnv(home, baseURL),
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr).toBe("");
+		expect(readFileSync(speech, "utf-8")).toBe("mock-mp3-audio");
+		expect(readFileSync(transcript, "utf-8")).toContain("mock transcript text");
+		expect(existsSync(`${speech}.json`)).toBe(true);
+		expect(existsSync(`${transcript}.json`)).toBe(true);
+
+		const cliJson = JSON.parse(result.stdout);
+		expect(cliJson.map((item: { id: string }) => item.id)).toEqual([
+			"speech",
+			"transcript",
+		]);
+		expect(requests.map((request) => request.path)).toEqual([
+			"/v1/audio/speech",
+			"/v1/audio/transcriptions",
 		]);
 	});
 });

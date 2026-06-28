@@ -6,6 +6,9 @@ import {
 	writeSidecar,
 } from "../assets";
 import type {
+	AudioGenerateJob,
+	AudioTranscribeJob,
+	AudioTranslateJob,
 	ImageEditJob,
 	ImageGenerateJob,
 	ImageVariationJob,
@@ -23,6 +26,11 @@ import type {
 	VideoRemixJob,
 	VideoStatusJob,
 } from "../types";
+import {
+	runOpenAIAudioGenerate,
+	runOpenAIAudioTranscribe,
+	runOpenAIAudioTranslate,
+} from "./openai-audio";
 import { createOpenAIClient } from "./openai-client";
 import {
 	runOpenAIVideoCharacterCreate,
@@ -73,6 +81,9 @@ export class OpenAIProvider implements Provider {
 		"video.delete",
 		"video.character.create",
 		"video.character.get",
+		"audio.generate",
+		"audio.transcribe",
+		"audio.translate",
 	] as const;
 
 	async runImageGenerate(
@@ -286,6 +297,27 @@ export class OpenAIProvider implements Provider {
 		context: ProviderContext,
 	): Promise<JobResult> {
 		return runOpenAIVideoCharacterGet(createClient(context), job, context);
+	}
+
+	async runAudioGenerate(
+		job: AudioGenerateJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIAudioGenerate(createClient(context), job, context);
+	}
+
+	async runAudioTranscribe(
+		job: AudioTranscribeJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIAudioTranscribe(createClient(context), job, context);
+	}
+
+	async runAudioTranslate(
+		job: AudioTranslateJob,
+		context: ProviderContext,
+	): Promise<JobResult> {
+		return runOpenAIAudioTranslate(createClient(context), job, context);
 	}
 }
 

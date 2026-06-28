@@ -2,7 +2,7 @@
 
 ## Summary
 
-Ploof is an npm-published CLI for generating and editing assets through AI generation providers. It starts with OpenAI image and video generation/editing, but the architecture must support multiple authenticated providers, multiple asset modalities, provider-specific settings, and parallel execution across mixed jobs.
+Ploof is an npm-published CLI for generating, editing, and processing assets through AI generation providers. It starts with OpenAI image, video, and audio generation/processing, but the architecture must support multiple authenticated providers, multiple asset modalities, provider-specific settings, and parallel execution across mixed jobs.
 
 The product should feel like a small, sharp developer tool: easy to run manually, predictable in scripts, and optimized for AI agents.
 
@@ -97,6 +97,9 @@ Initial capabilities:
 - `video.delete`
 - `video.character.create`
 - `video.character.get`
+- `audio.generate`
+- `audio.transcribe`
+- `audio.translate`
 
 Future providers should be added through the provider registry without changing the manifest model.
 
@@ -303,6 +306,80 @@ project is eligible for that workflow. Extensions accept a source video id or
 upload, plus a prompt and `--seconds`. `video remix` is supported for the SDK's
 legacy remix endpoint, but new integrations should prefer `video edit`.
 
+### Audio Generation And Processing
+
+OpenAI audio generation uses the speech API and defaults to
+`gpt-4o-mini-tts`, `alloy`, and `mp3` when model, voice, and output format are
+omitted.
+
+```bash
+ploof audio generate \
+  --provider openai \
+  --text "Short narration for the generated asset." \
+  --model gpt-4o-mini-tts \
+  --voice alloy \
+  --format mp3 \
+  --out assets/narration.mp3 \
+  --output json
+```
+
+First-class OpenAI audio generation flags:
+
+- `--model <model>`
+- `--voice <voice>`
+- `--voice-id <id>`
+- `--instructions <text>`
+- `--format <format>` / `--response-format <format>`
+- `--speed <number>`
+- `--param key=value`
+- `--json '{...}'`
+
+Audio processing supports transcription and English translation:
+
+```bash
+ploof audio transcribe \
+  --audio assets/narration.mp3 \
+  --model gpt-4o-mini-transcribe \
+  --out assets/transcript.json \
+  --output json
+
+ploof audio translate \
+  --audio assets/spanish.mp3 \
+  --model whisper-1 \
+  --format text \
+  --out assets/translation.txt \
+  --output json
+```
+
+Transcription first-class flags:
+
+- `--model <model>`
+- `--language <code>`
+- `--prompt <prompt>`
+- `--format <format>` / `--response-format <format>`
+- `--temperature <number>`
+- `--include <value>`
+- `--timestamp-granularity word|segment`
+- `--chunking-strategy auto|{...}`
+- `--known-speaker-name <name>`
+- `--known-speaker-reference <data-url>`
+- `--param key=value`
+- `--json '{...}'`
+
+Translation first-class flags:
+
+- `--model <model>`
+- `--prompt <prompt>`
+- `--format <format>` / `--response-format <format>`
+- `--temperature <number>`
+- `--param key=value`
+- `--json '{...}'`
+
+Ploof is a static asset generation CLI. Audio commands request complete outputs
+and write them to disk. Streaming transport settings such as OpenAI
+`stream=true` for transcription or `stream_format=sse` for speech are rejected
+because they do not directly produce finished asset files.
+
 ### Batch Run
 
 ```bash
@@ -356,6 +433,27 @@ tasks:
     wait: true
     download: true
     output: assets/clip.mp4
+
+  - id: narration
+    kind: audio.generate
+    provider: openai
+    text: "Short narration for the generated clip."
+    params:
+      model: gpt-4o-mini-tts
+      voice: alloy
+      response_format: mp3
+    output: assets/narration.mp3
+
+  - id: transcript
+    kind: audio.transcribe
+    provider: openai
+    needs: [narration]
+    inputs:
+      audio:
+        task: narration
+    params:
+      model: gpt-4o-mini-transcribe
+    output: assets/transcript.json
 ```
 
 ## Asset Input Model
@@ -388,6 +486,10 @@ OpenAI video generation/editing maps:
 - `role=reference` to `input_reference` for image-guided video generation.
 - `role=video` to source video uploads for eligible edit/extension workflows.
 
+OpenAI audio processing maps:
+
+- `role=audio` to the uploaded audio file for transcription or translation.
+
 Future providers can map roles such as `reference`, `style`, `init-image`, `audio`, or `video` differently.
 
 ## Provider Architecture
@@ -411,6 +513,9 @@ type Provider = {
   runVideoDelete(job, context): Promise<ProviderResult>
   runVideoCharacterCreate(job, context): Promise<ProviderResult>
   runVideoCharacterGet(job, context): Promise<ProviderResult>
+  runAudioGenerate(job, context): Promise<ProviderResult>
+  runAudioTranscribe(job, context): Promise<ProviderResult>
+  runAudioTranslate(job, context): Promise<ProviderResult>
 }
 ```
 

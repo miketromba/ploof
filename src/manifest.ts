@@ -33,11 +33,15 @@ const taskSchema = z.object({
 		"video.delete",
 		"video.character.create",
 		"video.character.get",
+		"audio.generate",
+		"audio.transcribe",
+		"audio.translate",
 	]),
 	provider: z.string().default("openai"),
 	profile: z.string().optional(),
 	needs: z.array(z.string()).default([]),
 	prompt: z.string().optional(),
+	text: z.string().optional(),
 	params: z.record(z.string(), z.unknown()).default({}),
 	output: z.string().optional(),
 	sidecar: z.boolean().optional(),
@@ -56,6 +60,7 @@ const taskSchema = z.object({
 			video: inputRefSchema.optional(),
 			videos: z.array(inputRefSchema).optional(),
 			inputReference: inputRefSchema.optional(),
+			audio: inputRefSchema.optional(),
 		})
 		.optional(),
 });
@@ -167,6 +172,15 @@ function validateManifest(manifest: Manifest): void {
 	for (const task of manifest.tasks) {
 		if (requiresPrompt(task.kind) && !task.prompt) {
 			throw new Error(`Task ${task.id} requires a prompt.`);
+		}
+		if (task.kind === "audio.generate" && !task.text && !task.prompt) {
+			throw new Error(`Task ${task.id} requires text.`);
+		}
+		if (
+			["audio.transcribe", "audio.translate"].includes(task.kind) &&
+			!task.inputs?.audio
+		) {
+			throw new Error(`Task ${task.id} requires inputs.audio.`);
 		}
 		if (task.kind === "image.variation" && !task.inputs?.images?.length) {
 			throw new Error(`Task ${task.id} requires inputs.images.`);
@@ -362,6 +376,25 @@ async function executeTask(
 				},
 				context,
 			);
+		case "audio.generate":
+			return provider.runAudioGenerate(
+				{
+					...base,
+					kind: "audio.generate",
+					input: task.text ?? task.prompt ?? "",
+				},
+				context,
+			);
+		case "audio.transcribe":
+			return provider.runAudioTranscribe(
+				{ ...base, kind: "audio.transcribe", inputs },
+				context,
+			);
+		case "audio.translate":
+			return provider.runAudioTranslate(
+				{ ...base, kind: "audio.translate", inputs },
+				context,
+			);
 	}
 }
 
@@ -389,6 +422,9 @@ function resolveInputs(
 	}
 	for (const video of task.inputs?.videos ?? []) {
 		result.push(resolveInputAsset("video", video, options));
+	}
+	if (task.inputs?.audio) {
+		result.push(resolveInputAsset("audio", task.inputs.audio, options));
 	}
 	return result;
 }

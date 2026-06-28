@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version" />
 </p>
 
-Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image generation/editing and OpenAI video generation/editing today, plus the legacy OpenAI image variations endpoint when the authenticated project has access. The provider registry is designed for audio and broader model marketplaces over time.
+Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image, video, and audio generation/processing today, plus the legacy OpenAI image variations endpoint when the authenticated project has access. The provider registry is designed for broader model marketplaces over time.
 
 It is built for both developers and AI agents: predictable commands, parseable output, local auth profiles, YAML manifests, parallel execution, and a companion skill.
 
@@ -24,13 +24,15 @@ It is built for both developers and AI agents: predictable commands, parseable o
 | OpenAI video generation | Supported |
 | OpenAI video editing/extensions | Supported |
 | OpenAI video downloads/library/characters | Supported |
+| OpenAI audio generation / TTS | Supported |
+| OpenAI audio transcription | Supported |
+| OpenAI audio translation | Supported |
 | Context images and masks | Supported |
-| Video references and source videos | Supported |
+| Image, video, and audio input assets | Supported |
 | YAML/JSON batch manifests | Supported |
 | Dependency-aware parallel runs | Supported |
 | Agent instructions via `ploof learn` | Supported |
 | Additional providers | Planned |
-| Audio generation | Planned |
 
 ## Install
 
@@ -79,6 +81,16 @@ ploof video generate \
   --size 1280x720 \
   --seconds 4 \
   --out assets/clip.mp4
+
+# Generate and transcribe speech
+ploof audio generate \
+  --text "Ploof can generate speech and process audio." \
+  --voice alloy \
+  --out assets/speech.mp3
+
+ploof audio transcribe \
+  --audio assets/speech.mp3 \
+  --out assets/transcript.json
 
 # Run a manifest
 ploof run assets.yaml --parallel 4
@@ -247,6 +259,55 @@ ploof video character create --name Mossy --video character.mp4 --output json
 ploof video character get char_abc123 --output json
 ```
 
+## Audio Generation And Processing
+
+OpenAI audio generation defaults to `gpt-4o-mini-tts`, `alloy`, and `mp3` when model, voice, and format are omitted.
+
+```bash
+ploof audio generate \
+  --provider openai \
+  --text "A concise product narration for the demo reel." \
+  --model gpt-4o-mini-tts \
+  --voice alloy \
+  --format mp3 \
+  --out assets/narration.mp3 \
+  --output json
+```
+
+Useful generation flags:
+
+| Flag | Description |
+| --- | --- |
+| `--model <model>` | TTS model, for example `gpt-4o-mini-tts` |
+| `--voice <voice>` | Built-in voice such as `alloy`, `coral`, `nova`, or `shimmer` |
+| `--voice-id <id>` | Custom voice id |
+| `--instructions <text>` | Voice/style instructions for supported models |
+| `--format <format>` | `mp3`, `opus`, `aac`, `flac`, `wav`, or `pcm` |
+| `--speed <number>` | Speech speed |
+| `--param key=value` | Provider-specific pass-through parameter |
+| `--json '{...}'` | Provider-specific JSON object |
+
+Transcription and translation:
+
+```bash
+ploof audio transcribe \
+  --audio assets/narration.mp3 \
+  --model gpt-4o-mini-transcribe \
+  --out assets/transcript.json \
+  --output json
+
+ploof audio translate \
+  --audio assets/spanish.mp3 \
+  --model whisper-1 \
+  --format text \
+  --out assets/translation.txt \
+  --output json
+```
+
+Transcription supports `--language`, `--prompt`, `--format`, `--temperature`, `--include`, `--timestamp-granularity`, `--chunking-strategy`, `--known-speaker-name`, and `--known-speaker-reference`. Translation supports `--prompt`, `--format`, and `--temperature`.
+
+Ploof writes complete static assets to disk. Streaming transport settings such as OpenAI `stream=true` for transcription or `stream_format=sse` for speech are rejected because they do not produce a finished asset file directly.
+
 ## Batch Manifests
 
 ```yaml
@@ -294,6 +355,27 @@ tasks:
     wait: true
     download: true
     output: assets/clip.mp4
+
+  - id: narration
+    kind: audio.generate
+    provider: openai
+    text: "Short narration for the generated clip."
+    params:
+      model: gpt-4o-mini-tts
+      voice: alloy
+      response_format: mp3
+    output: assets/narration.mp3
+
+  - id: transcript
+    kind: audio.transcribe
+    provider: openai
+    needs: [narration]
+    inputs:
+      audio:
+        task: narration
+    params:
+      model: gpt-4o-mini-transcribe
+    output: assets/transcript.json
 ```
 
 Run it:
@@ -372,7 +454,7 @@ bun run build
 npm pack --dry-run
 ```
 
-The default test suite includes mocked OpenAI end-to-end tests. Those tests run real `ploof` CLI commands against a local mock OpenAI server and verify generated files, edit uploads, video job polling/downloads, sidecar metadata, and dependency-aware manifests without spending API credits.
+The default test suite includes mocked OpenAI end-to-end tests. Those tests run real `ploof` CLI commands against a local mock OpenAI server and verify generated files, edit uploads, video job polling/downloads, audio generation/processing, sidecar metadata, and dependency-aware manifests without spending API credits.
 
 Live OpenAI tests are opt-in only:
 

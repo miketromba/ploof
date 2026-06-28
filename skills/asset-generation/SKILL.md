@@ -1,6 +1,6 @@
 ---
 name: asset-generation
-description: Generate, edit, or batch-create AI assets with the ploof CLI. Use when working with generated images or videos, provider auth, asset manifests, image/video context inputs, masks, OpenAI video jobs, or agent-driven creative asset workflows.
+description: Generate, edit, process, or batch-create AI assets with the ploof CLI. Use when working with generated images, videos, or audio; provider auth; asset manifests; image/video/audio context inputs; masks; OpenAI media jobs; or agent-driven creative asset workflows.
 ---
 
 # Learn ploof from the CLI

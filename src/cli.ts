@@ -11,6 +11,9 @@ import { getProvider } from "./providers/registry";
 import { installSkill } from "./skill";
 import type {
 	AssetJob,
+	AudioGenerateJob,
+	AudioTranscribeJob,
+	AudioTranslateJob,
 	ImageEditJob,
 	ImageGenerateJob,
 	ImageVariationJob,
@@ -30,11 +33,12 @@ import type {
 	VideoStatusJob,
 } from "./types";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 type CliOptions = Record<string, unknown> & {
 	apiKey?: string;
 	after?: string;
+	audio?: string;
 	background?: string;
 	baseUrl?: string;
 	before?: string;
@@ -47,6 +51,8 @@ type CliOptions = Record<string, unknown> & {
 	fields?: string;
 	format?: string;
 	image?: string[] | string;
+	include?: string[] | string;
+	instructions?: string;
 	inputReference?: string;
 	inputReferenceFileId?: string;
 	inputReferenceUrl?: string;
@@ -82,6 +88,9 @@ type CliOptions = Record<string, unknown> & {
 	stream?: boolean;
 	style?: string;
 	target?: string;
+	temperature?: number;
+	text?: string;
+	timestampGranularity?: string[] | string;
 	timeout?: number;
 	user?: string;
 	variant?: string[] | string;
@@ -89,6 +98,12 @@ type CliOptions = Record<string, unknown> & {
 	video?: string;
 	videoId?: string;
 	wait?: boolean;
+	voice?: string;
+	voiceId?: string;
+	language?: string;
+	chunkingStrategy?: string;
+	knownSpeakerName?: string[] | string;
+	knownSpeakerReference?: string[] | string;
 };
 
 export function createProgram(): Command {
@@ -126,6 +141,7 @@ Use "ploof <command> --help" for more information about a command.`,
 	registerAuth(program);
 	registerImage(program);
 	registerVideo(program);
+	registerAudio(program);
 	registerRun(program);
 	registerLearn(program);
 	registerSkill(program);
@@ -768,6 +784,85 @@ function registerVideo(program: Command): void {
 		);
 }
 
+function registerAudio(program: Command): void {
+	const audioCmd = program
+		.command("audio")
+		.description("Generate and process audio assets");
+
+	const generateCmd = audioCmd
+		.command("generate")
+		.alias("speech")
+		.alias("tts")
+		.description("Generate speech audio from text")
+		.requiredOption("--text <text>", "Text to synthesize")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--out <path>", "Output file or directory");
+	addOpenAIAudioGenerateOptions(generateCmd);
+	generateCmd.action(
+		wrapAction(async (opts: CliOptions, command: Command) => {
+			const allOpts = { ...command.optsWithGlobals(), ...opts };
+			const job: AudioGenerateJob = {
+				kind: "audio.generate",
+				provider: allOpts.provider ?? "openai",
+				profile: allOpts.profile,
+				input: allOpts.text ?? "",
+				output: allOpts.out,
+				params: buildAudioGenerateParams(allOpts),
+			};
+			await runAndPrint(job, allOpts);
+		}),
+	);
+
+	const transcribeCmd = audioCmd
+		.command("transcribe")
+		.description("Transcribe audio into text")
+		.requiredOption("--audio <path>", "Audio file path or URL")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--out <path>", "Output transcript file");
+	addOpenAIAudioProcessingOptions(transcribeCmd, {
+		includeTranscriptionOnly: true,
+	});
+	transcribeCmd.action(
+		wrapAction(async (opts: CliOptions, command: Command) => {
+			const allOpts = { ...command.optsWithGlobals(), ...opts };
+			const job: AudioTranscribeJob = {
+				kind: "audio.transcribe",
+				provider: allOpts.provider ?? "openai",
+				profile: allOpts.profile,
+				output: allOpts.out,
+				params: buildAudioTranscribeParams(allOpts),
+				inputs: normalizeAudioInputs(allOpts.audio),
+			};
+			await runAndPrint(job, allOpts);
+		}),
+	);
+
+	const translateCmd = audioCmd
+		.command("translate")
+		.description("Translate audio into English text")
+		.requiredOption("--audio <path>", "Audio file path or URL")
+		.option("--provider <provider>", "Provider id", "openai")
+		.option("--profile <name>", "Auth profile")
+		.option("--out <path>", "Output translation file");
+	addOpenAIAudioProcessingOptions(translateCmd);
+	translateCmd.action(
+		wrapAction(async (opts: CliOptions, command: Command) => {
+			const allOpts = { ...command.optsWithGlobals(), ...opts };
+			const job: AudioTranslateJob = {
+				kind: "audio.translate",
+				provider: allOpts.provider ?? "openai",
+				profile: allOpts.profile,
+				output: allOpts.out,
+				params: buildAudioTranslateParams(allOpts),
+				inputs: normalizeAudioInputs(allOpts.audio),
+			};
+			await runAndPrint(job, allOpts);
+		}),
+	);
+}
+
 function registerRun(program: Command): void {
 	program
 		.command("run <manifest>")
@@ -890,6 +985,48 @@ function addOpenAIVideoLifecycleOptions(command: Command): void {
 		);
 }
 
+function addOpenAIAudioGenerateOptions(command: Command): void {
+	command
+		.option("--model <model>", "Audio generation model")
+		.option("--voice <voice>", "Built-in voice name")
+		.option("--voice-id <id>", "Custom voice id")
+		.option("--instructions <text>", "Voice/style instructions")
+		.option("--format <format>", "Audio format")
+		.option("--response-format <format>", "Provider response_format value")
+		.option("--speed <number>", "Speech speed", parseNumber)
+		.option("--param <key=value>", "Provider-specific parameter", collect, [])
+		.option("--json <object>", "Provider-specific JSON object");
+}
+
+function addOpenAIAudioProcessingOptions(
+	command: Command,
+	options: { includeTranscriptionOnly?: boolean } = {},
+): void {
+	command
+		.option("--model <model>", "Audio processing model")
+		.option("--prompt <prompt>", "Prompt/context for the audio model")
+		.option("--format <format>", "Transcript output format")
+		.option("--response-format <format>", "Provider response_format value")
+		.option("--temperature <number>", "Sampling temperature", parseNumber)
+		.option("--param <key=value>", "Provider-specific parameter", collect, [])
+		.option("--json <object>", "Provider-specific JSON object");
+
+	if (options.includeTranscriptionOnly) {
+		command
+			.option("--language <code>", "Input language code")
+			.option("--include <value>", "Additional response include", collect, [])
+			.option("--timestamp-granularity <value>", "word or segment", collect, [])
+			.option("--chunking-strategy <value>", "auto or JSON object")
+			.option("--known-speaker-name <name>", "Known speaker label", collect, [])
+			.option(
+				"--known-speaker-reference <data-url>",
+				"Known speaker audio sample data URL",
+				collect,
+				[],
+			);
+	}
+}
+
 function buildImageParams(opts: CliOptions): Record<string, unknown> {
 	const firstClass = compactObject({
 		model: opts.model,
@@ -929,6 +1066,68 @@ function buildImageVariationParams(opts: CliOptions): Record<string, unknown> {
 		firstClass,
 		parseParamAssignments(opts.param),
 	);
+}
+
+function buildAudioGenerateParams(opts: CliOptions): Record<string, unknown> {
+	const firstClass = compactObject({
+		model: opts.model,
+		voice: opts.voiceId ? { id: opts.voiceId } : opts.voice,
+		instructions: opts.instructions,
+		response_format: opts.responseFormat ?? opts.format,
+		speed: opts.speed,
+	});
+
+	return mergeObjects(
+		parseJsonObject(opts.json),
+		firstClass,
+		parseParamAssignments(opts.param),
+	);
+}
+
+function buildAudioTranscribeParams(opts: CliOptions): Record<string, unknown> {
+	const firstClass = compactObject({
+		model: opts.model,
+		language: opts.language,
+		prompt: opts.prompt,
+		response_format: opts.responseFormat ?? opts.format,
+		temperature: opts.temperature,
+		include: normalizeStringList(opts.include),
+		timestamp_granularities: normalizeStringList(opts.timestampGranularity),
+		chunking_strategy: parseMaybeJson(opts.chunkingStrategy),
+		known_speaker_names: normalizeStringList(opts.knownSpeakerName),
+		known_speaker_references: normalizeStringList(opts.knownSpeakerReference),
+	});
+
+	return mergeObjects(
+		parseJsonObject(opts.json),
+		firstClass,
+		parseParamAssignments(opts.param),
+	);
+}
+
+function buildAudioTranslateParams(opts: CliOptions): Record<string, unknown> {
+	const firstClass = compactObject({
+		model: opts.model,
+		prompt: opts.prompt,
+		response_format: opts.responseFormat ?? opts.format,
+		temperature: opts.temperature,
+	});
+
+	return mergeObjects(
+		parseJsonObject(opts.json),
+		firstClass,
+		parseParamAssignments(opts.param),
+	);
+}
+
+function normalizeAudioInputs(audio: string | undefined) {
+	if (!audio) return [];
+	return [
+		{
+			role: "audio" as const,
+			source: audio,
+		},
+	];
 }
 
 function buildVideoCreateParams(opts: CliOptions): Record<string, unknown> {
@@ -1039,6 +1238,21 @@ function parseVideoVariants(
 	});
 }
 
+function normalizeStringList(
+	value: string[] | string | undefined,
+): string[] | undefined {
+	const values =
+		value === undefined ? [] : Array.isArray(value) ? value : [value];
+	const normalized = values.map((item) => item.trim()).filter(Boolean);
+	return normalized.length > 0 ? normalized : undefined;
+}
+
+function parseMaybeJson(value: string | undefined): unknown {
+	if (value === undefined) return undefined;
+	if (value === "auto") return value;
+	return parseJsonObject(value);
+}
+
 async function runAndPrint(job: AssetJob, opts: CliOptions): Promise<void> {
 	const config = new Config();
 	const auth = new Auth();
@@ -1094,6 +1308,12 @@ async function runProviderJob(
 			return provider.runVideoCharacterCreate(job, context);
 		case "video.character.get":
 			return provider.runVideoCharacterGet(job, context);
+		case "audio.generate":
+			return provider.runAudioGenerate(job, context);
+		case "audio.transcribe":
+			return provider.runAudioTranscribe(job, context);
+		case "audio.translate":
+			return provider.runAudioTranslate(job, context);
 	}
 }
 
