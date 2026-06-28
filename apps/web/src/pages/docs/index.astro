@@ -1,0 +1,424 @@
+---
+import Base from "../../layouts/Base.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import Icon from "../../components/Icon.astro";
+import { AGENT_PROMPT, LINKS } from "../../consts";
+
+const sections = [
+	{ id: "overview", label: "Overview" },
+	{ id: "install", label: "Install" },
+	{ id: "agents", label: "Use with an agent" },
+	{ id: "auth", label: "Authentication" },
+	{ id: "images", label: "Images" },
+	{ id: "video", label: "Video" },
+	{ id: "audio", label: "Audio" },
+	{ id: "models", label: "Any model endpoint" },
+	{ id: "manifests", label: "Batch manifests" },
+	{ id: "output", label: "Output & scripting" },
+	{ id: "config", label: "Configuration" },
+	{ id: "reference", label: "Reference" },
+];
+
+const manifestExample = `version: 1
+parallel: 4
+tasks:
+  - id: base
+    kind: image.generate
+    prompt: "Studio product photo"
+    params: { model: gpt-image-2, size: 1024x1024, quality: high }
+    output: assets/base.png
+
+  - id: final
+    kind: image.edit
+    needs: [base]          # runs after base, reuses its output
+    inputs:
+      images:
+        - task: base
+      mask: ./mask.png
+    prompt: "Add a premium background"
+    output: assets/final.png
+
+  - id: clip
+    kind: video.generate
+    prompt: "Slow dolly through a paper city"
+    params: { model: sora-2, size: 1280x720, seconds: "4" }
+    wait: true
+    download: true
+    output: assets/clip.mp4`;
+---
+
+<Base
+	path="/docs"
+	mdPath="/docs.md"
+	title="Ploof Docs — generate images, video & audio from the CLI"
+	description="Ploof documentation: install, authenticate, and generate images, video, and audio from the CLI. Batch manifests, parseable output, and agent integration."
+	breadcrumbs={[
+		{ name: "Home", path: "/" },
+		{ name: "Docs", path: "/docs" },
+	]}
+>
+	<div class="container-px grid gap-10 py-12 lg:grid-cols-[15rem_1fr] lg:py-16">
+		<!-- sidebar -->
+		<aside class="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+			<p class="mb-3 text-xs font-bold tracking-wide text-muted uppercase">Documentation</p>
+			<nav class="flex flex-wrap gap-1.5 lg:flex-col lg:gap-0.5">
+				{
+					sections.map((s) => (
+						<a
+							href={`#${s.id}`}
+							data-spy={s.id}
+							class="doc-link rounded-lg px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-violet-100/70 hover:text-ink"
+						>
+							{s.label}
+						</a>
+					))
+				}
+			</nav>
+			<div class="mt-6 hidden rounded-2xl border border-violet-100 bg-white/70 p-4 lg:block">
+				<p class="text-xs text-muted">Driving Ploof from an agent? It documents itself:</p>
+				<code class="mt-2 block rounded-lg bg-violet-50 px-2.5 py-1.5 font-mono text-xs text-violet-700">ploof learn</code>
+				<div class="mt-3 flex flex-col gap-1.5 border-t border-violet-100 pt-3 text-xs">
+					<a href="/docs.md" class="font-medium text-violet-700 hover:text-violet-500">This page as Markdown →</a>
+					<a href="/llms.txt" class="font-medium text-violet-700 hover:text-violet-500">llms.txt →</a>
+				</div>
+			</div>
+		</aside>
+
+		<!-- article -->
+		<article class="doc min-w-0 max-w-3xl">
+			<header class="mb-10">
+				<h1 class="text-4xl font-extrabold">Ploof documentation</h1>
+				<p class="mt-3 text-lg text-muted">
+					Everything you need to generate assets with the <code>ploof</code> CLI.
+					Prefer letting an agent read it? Run <code>ploof learn</code> for the
+					always-current, version-matched reference.
+				</p>
+				<div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
+					<a
+						href="/docs.md"
+						class="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white/70 px-3 py-1.5 font-medium text-violet-700 transition hover:border-violet-300 hover:bg-white"
+					>
+						<Icon name="book" class="h-3.5 w-3.5" /> Read as Markdown
+					</a>
+					<a
+						href="/llms.txt"
+						class="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white/70 px-3 py-1.5 font-medium text-violet-700 transition hover:border-violet-300 hover:bg-white"
+					>
+						llms.txt
+					</a>
+				</div>
+			</header>
+
+			<section id="overview">
+				<h2>Overview</h2>
+				<p>
+					Ploof is an agent-native CLI for generating and editing creative assets.
+					It supports OpenAI image, video, and audio, plus fal.ai's model
+					marketplace through <code>model run</code> — all behind one consistent,
+					scriptable command surface that writes finished files to disk.
+				</p>
+				<ul>
+					<li><b>Package</b> — <code>{LINKS.package}</code>, command <code>ploof</code></li>
+					<li><b>Providers</b> — OpenAI and fal.ai (more planned)</li>
+					<li><b>Requires</b> — Node 18+ (Bun optional)</li>
+				</ul>
+			</section>
+
+			<section id="install">
+				<h2>Install</h2>
+				<CodeBlock label="terminal" code={`bun i -g @miketromba/ploof
+# or
+npm  i -g @miketromba/ploof
+pnpm add -g @miketromba/ploof
+
+# run once without installing
+bunx @miketromba/ploof --help`} />
+			</section>
+
+			<section id="agents">
+				<h2>Use with an agent</h2>
+				<p>
+					This is the primary path. Paste the prompt below into Claude Code,
+					Cursor, or Codex — it installs Ploof, reads <code>ploof learn</code>,
+					authenticates, and generates your assets.
+				</p>
+				<CodeBlock label="paste into your agent" code={AGENT_PROMPT} />
+				<p>
+					Working in a repo often? Have the agent run <code>ploof skill install</code>
+					once to drop a bootstrap skill so the workflow auto-loads next time.
+				</p>
+			</section>
+
+			<section id="auth">
+				<h2>Authentication</h2>
+				<p>Credentials are stored locally in <code>~/.ploof/credentials.json</code>.</p>
+				<CodeBlock label="terminal" code={`ploof login openai --api-key sk-...
+ploof login fal    --api-key <fal-key>
+
+ploof whoami openai      # show the active credential
+ploof profiles           # list every stored profile
+ploof logout fal         # remove credentials`} />
+				<p>
+					Omit <code>--api-key</code> and Ploof reads the matching environment
+					variable, or securely prompts (no echo) in an interactive terminal. Name
+					multiple keys with <code>--profile</code> and select per command.
+				</p>
+				<div class="doc-table">
+					<table>
+						<thead><tr><th>Provider</th><th>Environment variables</th></tr></thead>
+						<tbody>
+							<tr><td>OpenAI</td><td><code>PLOOF_OPENAI_API_KEY</code> or <code>OPENAI_API_KEY</code></td></tr>
+							<tr><td>fal.ai</td><td><code>PLOOF_FAL_KEY</code> or <code>FAL_KEY</code> (or split <code>…_FAL_KEY_ID</code> + <code>…_FAL_KEY_SECRET</code>)</td></tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section id="images">
+				<h2>Images</h2>
+				<p>Generation and editing default to OpenAI <code>gpt-image-2</code>. Inputs accept local paths, <code>http(s)</code> URLs, or <code>-</code> for stdin.</p>
+				<CodeBlock label="terminal" code={`# generate
+ploof image generate \\
+  --prompt "Editorial portrait, dramatic side light" \\
+  --out assets/portrait.png --size 1024x1024 --quality high
+
+# edit with context images + a mask (repeat --image)
+ploof image edit \\
+  --image product.png --image reference.png --mask mask.png \\
+  --prompt "Replace the background with marble" \\
+  --out assets/edited.png
+
+# variations (legacy dall-e-2 endpoint)
+ploof image variation --image product.png --out assets/variation.png`} />
+				<p class="doc-note">Key flags: <code>--model</code>, <code>--size</code>, <code>--quality</code>, <code>--format</code>, <code>--n</code>, <code>--background</code>, plus <code>--param key=value</code> / <code>--json '&#123;…&#125;'</code> for anything provider-specific.</p>
+			</section>
+
+			<section id="video">
+				<h2>Video</h2>
+				<p>OpenAI's async Videos API, defaulting to <code>sora-2</code>. Pass <code>--out</code> (or <code>--download</code>) and Ploof waits for the job, then downloads it.</p>
+				<CodeBlock label="terminal" code={`ploof video generate \\
+  --prompt "Wide tracking shot of a paper city at blue hour" \\
+  --size 1280x720 --seconds 4 --out assets/clip.mp4
+
+ploof video extend --video-id video_abc123 --seconds 4 \\
+  --prompt "Camera rises over the rooftops" --out assets/extended.mp4
+
+ploof video list --limit 20
+ploof video download video_abc123 --variant thumbnail --out thumb.webp`} />
+				<p class="doc-note">Also: <code>--input-reference</code> for a first-frame image, <code>--character</code> for reusable characters, and <code>--wait</code> / <code>--poll-interval</code> / <code>--timeout</code> for lifecycle control.</p>
+			</section>
+
+			<section id="audio">
+				<h2>Audio</h2>
+				<p>Speech defaults to <code>gpt-4o-mini-tts</code> / <code>alloy</code> / <code>mp3</code>. Transcription defaults to <code>gpt-4o-mini-transcribe</code>; translation to <code>whisper-1</code>.</p>
+				<CodeBlock label="terminal" code={`# text -> speech
+ploof audio generate --text "Ploof can speak." --voice alloy --out speech.mp3
+
+# speech -> text
+ploof audio transcribe --audio speech.mp3 --out transcript.json
+
+# any language -> English text
+ploof audio translate --audio spanish.mp3 --format text --out out.txt`} />
+			</section>
+
+			<section id="models">
+				<h2>Any model endpoint</h2>
+				<p><code>model run</code> calls an endpoint directly through the provider's official client — defaulting to <b>fal.ai</b>. Ploof uploads local inputs, submits to the queue, polls to completion, and writes the results.</p>
+				<CodeBlock label="terminal" code={`ploof model run \\
+  --provider fal --model fal-ai/flux/dev \\
+  --prompt "Friendly CLI mascot icon, transparent background" \\
+  --param image_size=square_hd \\
+  --out assets/icon.png
+
+# map local assets to exact provider input fields (repeatable)
+ploof model run --provider fal --model <endpoint-id> \\
+  --prompt "Animate this into a loop" \\
+  --input image_url=assets/source.png --param duration=4 \\
+  --out assets/loop.mp4`} />
+			</section>
+
+			<section id="manifests">
+				<h2>Batch manifests</h2>
+				<p>Describe many assets in YAML (or JSON), wire dependencies with <code>needs</code>, reuse one task's output as another's input, and run them in parallel.</p>
+				<CodeBlock label="assets.yaml" code={manifestExample} />
+				<CodeBlock label="terminal" code={`ploof run assets.yaml --parallel 4
+ploof run assets.yaml --dry-run --output json   # validate, no API calls`} />
+				<p class="doc-note">Media tasks default to <code>provider: openai</code>; <code>model.run</code> defaults to <code>provider: fal</code>. Relative paths resolve from the manifest's location.</p>
+			</section>
+
+			<section id="output">
+				<h2>Output & scripting</h2>
+				<p>Human-readable in a terminal, machine-readable in a pipe — automatically.</p>
+				<div class="doc-table">
+					<table>
+						<thead><tr><th>Format</th><th>When</th></tr></thead>
+						<tbody>
+							<tr><td><code>auto</code> <span class="text-muted">(default)</span></td><td><code>table</code> in a TTY, <code>compact</code> when piped</td></tr>
+							<tr><td><code>table</code></td><td>Human-readable columns</td></tr>
+							<tr><td><code>compact</code></td><td>One line per asset, easy to grep</td></tr>
+							<tr><td><code>json</code> / <code>jsonl</code></td><td>Programmatic / streaming</td></tr>
+						</tbody>
+					</table>
+				</div>
+				<p>Every result is a stable object, and each asset gets a <code>&lt;file&gt;.json</code> sidecar recording the prompt, params, and provider metadata — reproducible by default.</p>
+				<CodeBlock label="result.json" code={`{
+  "kind": "video.generate",
+  "provider": "openai",
+  "outputs": ["assets/clip.mp4"],
+  "metadata": { "video": { "id": "video_…", "status": "completed" } }
+}`} />
+				<p class="doc-note">Narrow output with <code>--fields a,b.c</code>, or set a default via <code>--output</code>, <code>PLOOF_OUTPUT</code>, or <code>ploof config set output …</code>.</p>
+			</section>
+
+			<section id="config">
+				<h2>Configuration</h2>
+				<CodeBlock label="terminal" code={`ploof config list
+ploof config set output compact
+ploof config set defaultParallel 8
+ploof config set sidecar false
+ploof config reset`} />
+				<div class="doc-table">
+					<table>
+						<thead><tr><th>Key</th><th>Default</th><th>Meaning</th></tr></thead>
+						<tbody>
+							<tr><td><code>output</code></td><td><code>auto</code></td><td>Default output format</td></tr>
+							<tr><td><code>defaultParallel</code></td><td><code>4</code></td><td>Default <code>run</code> concurrency</td></tr>
+							<tr><td><code>sidecar</code></td><td><code>true</code></td><td>Write <code>&lt;file&gt;.json</code> metadata</td></tr>
+							<tr><td><code>noColor</code></td><td><code>false</code></td><td>Disable ANSI color</td></tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section id="reference">
+				<h2>Reference</h2>
+				<p>Global flags work on any command: <code>-o/--output</code>, <code>-f/--fields</code>, <code>-d/--detail</code>, <code>-q/--quiet</code>, <code>--no-color</code>, <code>--verbose</code>, <code>-y/--yes</code>. Run <code>ploof &lt;command&gt; --help</code> for any subcommand.</p>
+				<div class="mt-6 flex flex-wrap gap-3">
+					<a href={LINKS.github} target="_blank" rel="noopener" class="btn-ghost"><Icon name="github" class="h-4 w-4" /> GitHub</a>
+					<a href={LINKS.npm} target="_blank" rel="noopener" class="btn-ghost"><Icon name="npm" class="h-4 w-4" /> npm</a>
+					<a href={`${LINKS.github}/blob/main/packages/cli/README.md`} target="_blank" rel="noopener" class="btn-ghost"><Icon name="book" class="h-4 w-4" /> Full README</a>
+				</div>
+			</section>
+		</article>
+	</div>
+
+	<script>
+		// Scrollspy: highlight the current section in the sidebar.
+		const links = [...document.querySelectorAll<HTMLAnchorElement>("[data-spy]")];
+		const map = new Map(links.map((l) => [l.dataset.spy, l]));
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const e of entries) {
+					if (e.isIntersecting) {
+						links.forEach((l) => l.classList.remove("doc-link-active"));
+						map.get(e.target.id)?.classList.add("doc-link-active");
+					}
+				}
+			},
+			{ rootMargin: "-10% 0px -80% 0px", threshold: 0 },
+		);
+		document.querySelectorAll("article.doc section[id]").forEach((s) => observer.observe(s));
+	</script>
+
+	<style>
+		.doc-link-active {
+			background-color: var(--color-violet-100);
+			color: var(--color-ink);
+			font-weight: 600;
+		}
+
+		/* Article prose */
+		.doc section {
+			scroll-margin-top: 6rem;
+			padding-top: 2.5rem;
+			margin-top: 2.5rem;
+			border-top: 1px solid var(--color-lavender);
+		}
+		.doc section:first-of-type {
+			border-top: 0;
+			margin-top: 0;
+			padding-top: 0;
+		}
+		.doc h2 {
+			font-size: 1.6rem;
+			font-weight: 800;
+			letter-spacing: -0.01em;
+		}
+		.doc h2 + p,
+		.doc p + p {
+			margin-top: 0.85rem;
+		}
+		.doc p {
+			color: var(--color-ink);
+			line-height: 1.7;
+			opacity: 0.9;
+		}
+		.doc :is(p, li, td) code,
+		.doc h1 code,
+		.doc h2 code {
+			background: var(--color-violet-100);
+			color: var(--color-violet-700);
+			padding: 0.1em 0.4em;
+			border-radius: 0.35rem;
+			font-family: var(--font-mono);
+			font-size: 0.86em;
+		}
+		.doc ul {
+			margin-top: 1rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
+		}
+		.doc ul li {
+			position: relative;
+			padding-left: 1.4rem;
+			color: var(--color-ink);
+			opacity: 0.9;
+			line-height: 1.6;
+		}
+		.doc ul li::before {
+			content: "";
+			position: absolute;
+			left: 0.2rem;
+			top: 0.6rem;
+			width: 0.4rem;
+			height: 0.4rem;
+			border-radius: 9999px;
+			background: var(--color-violet-400);
+		}
+		.doc .doc-note {
+			margin-top: 1rem;
+			font-size: 0.92rem;
+			color: var(--color-muted);
+		}
+		.doc :global(.code-block) {
+			margin-top: 1.25rem;
+		}
+		.doc .doc-table {
+			margin-top: 1.25rem;
+			overflow-x: auto;
+			border-radius: 1rem;
+			border: 1px solid var(--color-violet-100);
+		}
+		.doc table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 0.9rem;
+		}
+		.doc thead {
+			background: var(--color-violet-50);
+		}
+		.doc th {
+			text-align: left;
+			padding: 0.7rem 1rem;
+			font-weight: 700;
+			color: var(--color-ink);
+		}
+		.doc td {
+			padding: 0.7rem 1rem;
+			border-top: 1px solid var(--color-lavender);
+			color: var(--color-ink);
+			opacity: 0.9;
+		}
+	</style>
+</Base>

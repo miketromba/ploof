@@ -1,0 +1,24 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base path="/404" title="Page not found — Ploof" noindex={true}>
+	<section class="container-px flex min-h-[62vh] flex-col items-center justify-center py-20 text-center">
+		<img
+			src="/mascot.png"
+			width="120"
+			height="120"
+			class="h-28 w-28 animate-float rounded-3xl drop-shadow-xl"
+			alt="Ploof mascot"
+		/>
+		<p class="mt-8 font-mono text-sm font-semibold text-violet-600">404</p>
+		<h1 class="mt-2 text-4xl font-extrabold sm:text-5xl">This page poofed.</h1>
+		<p class="mt-4 max-w-md text-lg text-muted">
+			We couldn't find that one. Let's get you back to generating assets.
+		</p>
+		<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+			<a href="/" class="btn-primary">Back home</a>
+			<a href="/docs" class="btn-ghost">Read the docs</a>
+		</div>
+	</section>
+</Base>

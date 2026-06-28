@@ -1,0 +1,74 @@
+---
+import "../styles/global.css";
+import BaseHead from "../components/BaseHead.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+	title?: string;
+	description?: string;
+	path?: string;
+	image?: string;
+	imageAlt?: string;
+	type?: "website" | "article";
+	mdPath?: string;
+	noindex?: boolean;
+	breadcrumbs?: { name: string; path: string }[];
+}
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead {...Astro.props} />
+	</head>
+	<body class="min-h-screen overflow-x-hidden">
+		<a
+			href="#main"
+			class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-violet-500 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+		>
+			Skip to content
+		</a>
+		<Nav />
+		<main id="main">
+			<slot />
+		</main>
+		<Footer />
+
+		<script>
+			// Site-wide copy-to-clipboard. Buttons opt in with either
+			// `data-copy="<text>"` or `data-copy-target="#selector"`.
+			document.addEventListener("click", async (event) => {
+				const target = event.target as HTMLElement;
+				const btn = target.closest<HTMLElement>(
+					"[data-copy], [data-copy-target]",
+				);
+				if (!btn) return;
+
+				let text = btn.getAttribute("data-copy");
+				if (!text && btn.dataset.copyTarget) {
+					const el = document.querySelector<HTMLElement>(
+						btn.dataset.copyTarget,
+					);
+					text = el ? (el.innerText ?? el.textContent ?? "") : "";
+				}
+				if (text == null) return;
+
+				try {
+					await navigator.clipboard.writeText(text);
+				} catch {
+					return;
+				}
+
+				btn.classList.add("is-copied");
+				const label = btn.querySelector<HTMLElement>("[data-copy-label]");
+				const previous = label?.textContent ?? null;
+				if (label) label.textContent = "Copied!";
+				window.setTimeout(() => {
+					btn.classList.remove("is-copied");
+					if (label && previous !== null) label.textContent = previous;
+				}, 1600);
+			});
+		</script>
+	</body>
+</html>

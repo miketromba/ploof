@@ -1,0 +1,60 @@
+---
+import { LINKS, NAV } from "../consts";
+import Icon from "./Icon.astro";
+---
+
+<header
+	class="sticky top-0 z-40 border-b border-violet-100/70 bg-cream/80 backdrop-blur-lg"
+>
+	<nav class="container-px flex h-16 items-center justify-between gap-4">
+		<a href="/" class="flex items-center gap-2.5 font-display text-lg font-extrabold text-ink">
+			<img
+				src="/mascot.png"
+				alt=""
+				width="32"
+				height="32"
+				class="h-8 w-8 rounded-lg"
+				loading="eager"
+			/>
+			Ploof
+		</a>
+
+		<div class="hidden items-center gap-1 md:flex">
+			{
+				NAV.map((item) => (
+					<a
+						href={item.href}
+						class="rounded-full px-3.5 py-2 text-sm font-medium text-muted transition hover:bg-violet-100/70 hover:text-ink"
+					>
+						{item.label}
+					</a>
+				))
+			}
+		</div>
+
+		<div class="flex items-center gap-1.5">
+			<a
+				href={LINKS.npm}
+				target="_blank"
+				rel="noopener"
+				aria-label="Ploof on npm"
+				class="flex h-9 w-9 items-center justify-center rounded-full text-muted transition hover:bg-violet-100/70 hover:text-ink"
+			>
+				<Icon name="npm" class="h-5 w-5" />
+			</a>
+			<a
+				href={LINKS.github}
+				target="_blank"
+				rel="noopener"
+				aria-label="Ploof on GitHub"
+				class="flex h-9 w-9 items-center justify-center rounded-full text-muted transition hover:bg-violet-100/70 hover:text-ink"
+			>
+				<Icon name="github" class="h-5 w-5" />
+			</a>
+			<a href="/docs" class="btn-primary ml-1 hidden sm:inline-flex">
+				Get started
+				<Icon name="arrowRight" class="h-4 w-4" />
+			</a>
+		</div>
+	</nav>
+</header>

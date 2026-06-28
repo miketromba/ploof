@@ -1,0 +1,67 @@
+---
+// Source for the 1200x630 social/OG image. Rendered, screenshotted to
+// /public/og.png, and excluded from the sitemap + search indexing.
+import "../styles/global.css";
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>Ploof — social card</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				background: #fff;
+			}
+			.og {
+				position: relative;
+				width: 1200px;
+				height: 630px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="og flex items-center bg-gradient-to-br from-cream via-lavender to-violet-100">
+			<div class="aurora -left-24 -top-28 h-[28rem] w-[28rem] bg-peach" style="opacity:.6"></div>
+			<div class="aurora -bottom-28 -right-16 h-[30rem] w-[30rem] bg-violet-300" style="opacity:.5"></div>
+			<div class="absolute inset-0 bg-dots" style="opacity:.22"></div>
+
+			<div class="relative z-10 flex w-full items-center justify-between px-20">
+				<div class="max-w-[620px]">
+					<div class="flex items-center gap-3">
+						<img src="/favicon.svg" width="56" height="56" class="h-14 w-14" alt="" />
+						<span class="font-display text-5xl font-extrabold text-ink">Ploof</span>
+					</div>
+					<h1 class="mt-8 font-display text-[56px] font-extrabold leading-[1.06] text-ink">
+						Generate images, video &amp; audio
+						<span class="gradient-text">from your terminal.</span>
+					</h1>
+					<p class="mt-6 text-2xl text-muted">
+						The agent-native CLI for AI asset generation.
+					</p>
+					<div class="mt-9 inline-flex items-center gap-2.5 rounded-full border border-violet-200 bg-white/70 px-5 py-3 font-mono text-lg text-ink">
+						<span class="text-violet-400">$</span> bun i -g @miketromba/ploof
+					</div>
+				</div>
+
+				<div class="relative shrink-0">
+					<div class="absolute inset-4 -z-10 rounded-full bg-gradient-to-br from-peach/70 to-violet-300/70 blur-2xl"></div>
+					<img
+						src="/mascot.png"
+						width="380"
+						height="380"
+						class="h-[380px] w-[380px] rounded-[2rem] object-contain drop-shadow-2xl"
+						alt=""
+					/>
+				</div>
+			</div>
+
+			<div class="absolute bottom-9 left-20 text-xl font-bold text-violet-700">ploof.sh</div>
+		</div>
+	</body>
+</html>

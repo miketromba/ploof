@@ -1,0 +1,49 @@
+---
+import { AGENT_PROMPT, INSTALL, LINKS } from "../consts";
+import Icon from "./Icon.astro";
+---
+
+<section class="container-px py-12">
+	<div class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-violet-600 via-violet-500 to-blush px-6 py-16 text-center text-white shadow-lift sm:px-12">
+		<div class="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(70%_70%_at_50%_50%,black,transparent)]"></div>
+
+		<div class="relative mx-auto max-w-2xl">
+			<img src="/mascot.png" alt="" width="80" height="80" class="mx-auto h-20 w-20 animate-float rounded-2xl drop-shadow-lg" />
+			<h2 class="mt-5 text-3xl font-extrabold text-white sm:text-4xl">
+				Ready to make something?
+			</h2>
+			<p class="mt-3 text-lg text-violet-50/90">
+				Drop the prompt into your agent and describe what you want. Files in
+				seconds.
+			</p>
+
+			<div class="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+				<button
+					type="button"
+					class="copy-cta inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-violet-700 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+					data-copy={AGENT_PROMPT}
+				>
+					<Icon name="copy" class="copy-icon h-4 w-4" />
+					<Icon name="check" class="check-icon h-4 w-4" />
+					<span data-copy-label>Copy the agent prompt</span>
+				</button>
+				<a href="/docs" class="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20">
+					Read the docs <Icon name="arrowRight" class="h-4 w-4" />
+				</a>
+			</div>
+
+			<div class="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-mono text-xs text-violet-50/80">
+				<span>$ {INSTALL.bun}</span>
+				<a href={LINKS.github} target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 underline-offset-2 hover:underline">
+					<Icon name="github" class="h-4 w-4" /> Star on GitHub
+				</a>
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.check-icon { display: none; }
+	.copy-cta.is-copied .check-icon { display: inline; }
+	.copy-cta.is-copied .copy-icon { display: none; }
+</style>

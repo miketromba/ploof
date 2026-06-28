@@ -1,0 +1,74 @@
+---
+import CodeBlock from "./CodeBlock.astro";
+import Icon from "./Icon.astro";
+
+const manifest = `# gallery.yaml — build the whole gallery in parallel
+version: 1
+parallel: 4
+tasks:
+  - id: mascot
+    kind: image.generate
+    prompt: "A fluffy cloud holding a glowing terminal…"
+    params: { model: gpt-image-2, size: 1024x1024, quality: high }
+    output: images/mascot.png
+
+  - id: city
+    kind: image.generate
+    prompt: "Tilt-shift miniature city at blue hour…"
+    params: { model: gpt-image-2, size: 1536x1024 }
+    output: images/city.png
+
+  - id: voiceover
+    kind: audio.generate
+    text: "Ploof turns a prompt into a finished asset…"
+    params: { model: gpt-4o-mini-tts, voice: alloy }
+    output: audio/voiceover.mp3
+
+  # …and 6 more images`;
+
+const points = [
+	"Mixed modalities — images, video, and audio in one run",
+	"Dependency-aware: chain a task's output into the next with needs",
+	"Runs concurrently; --dry-run validates before you spend a cent",
+];
+---
+
+<section class="relative overflow-hidden py-20 sm:py-24">
+	<div class="pointer-events-none absolute inset-0 -z-10">
+		<div class="aurora right-[-6rem] top-10 h-80 w-80 bg-peach"></div>
+		<div class="aurora bottom-0 left-[-6rem] h-80 w-80 bg-violet-200"></div>
+	</div>
+
+	<div class="container-px grid items-center gap-12 lg:grid-cols-2">
+		<div>
+			<h2 class="text-3xl font-extrabold sm:text-4xl">
+				One file. Many assets. <span class="gradient-text">One command.</span>
+			</h2>
+			<p class="mt-4 text-lg text-muted">
+				Declare every asset in a YAML manifest and let Ploof run them in
+				parallel. The gallery above was produced by exactly this.
+			</p>
+
+			<ul class="mt-6 space-y-3">
+				{
+					points.map((p) => (
+						<li class="flex items-start gap-3 text-[15px] text-ink/85">
+							<span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+								<Icon name="check" class="h-3.5 w-3.5" />
+							</span>
+							{p}
+						</li>
+					))
+				}
+			</ul>
+
+			<div class="mt-7 max-w-sm">
+				<CodeBlock code="ploof run gallery.yaml --parallel 4" label="terminal" />
+			</div>
+		</div>
+
+		<div class="lg:pl-4">
+			<CodeBlock code={manifest} label="gallery.yaml" />
+		</div>
+	</div>
+</section>
