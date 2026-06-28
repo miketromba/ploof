@@ -33,6 +33,7 @@ describe("ploof CLI", () => {
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout).toContain("AI asset generation CLI");
 		expect(result.stdout).toContain("ploof login openai");
+		expect(result.stdout).toContain("model");
 		expect(result.stdout).not.toContain("  auth");
 	});
 
@@ -88,6 +89,33 @@ describe("ploof CLI", () => {
 		});
 		expect(status.exitCode).toBe(0);
 		expect(status.stdout).toContain("source=stored");
+	});
+
+	test("login supports fal credentials", async () => {
+		const home = mkdtempSync(join(tmpdir(), "ploof-cli-login-fal-"));
+		const login = await runCli(["login", "fal", "--profile", "env"], {
+			FAL_KEY: "fal-env",
+			PLOOF_FAL_KEY: "",
+			PLOOF_HOME: home,
+		});
+		expect(login.exitCode).toBe(0);
+		expect(login.stdout).toContain("Authenticated fal profile=env");
+
+		const status = await runCli(["whoami", "fal", "--profile", "env"], {
+			FAL_KEY: "",
+			PLOOF_HOME: home,
+		});
+		expect(status.exitCode).toBe(0);
+		expect(status.stdout).toContain("provider=fal");
+		expect(status.stdout).toContain("source=stored");
+	});
+
+	test("model run help documents generic endpoint execution", async () => {
+		const result = await runCli(["model", "run", "--help"]);
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toContain("--model <id>");
+		expect(result.stdout).toContain("--input <field=path>");
+		expect(result.stdout).toContain("--provider <provider>");
 	});
 
 	test("learn command prints guidance", async () => {

@@ -102,4 +102,41 @@ describe("manifest", () => {
 		expect(manifest.tasks[1]?.inputs?.image).toEqual({ task: "base" });
 		expect(manifest.tasks[1]?.inputs?.style).toEqual({ source: "style.png" });
 	});
+
+	test("accepts provider-neutral model run tasks", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "ploof-manifest-model-run-"));
+		const manifestPath = join(dir, "assets.yaml");
+		writeFileSync(
+			manifestPath,
+			[
+				"version: 1",
+				"tasks:",
+				"  - id: fal-image",
+				"    kind: model.run",
+				"    model: fal-ai/flux/dev",
+				'    prompt: "small app icon"',
+				"    params:",
+				"      image_size: square_hd",
+				"    output: icon.png",
+				"  - id: fal-video",
+				"    kind: model.run",
+				"    provider: fal",
+				"    model: fal-ai/example/video",
+				"    needs: [fal-image]",
+				"    inputs:",
+				"      image_url:",
+				"        task: fal-image",
+				"    output: clip.mp4",
+			].join("\n"),
+		);
+
+		const manifest = await parseManifest(manifestPath);
+		expect(manifest.tasks[0]?.kind).toBe("model.run");
+		expect(manifest.tasks[0]?.model).toBe("fal-ai/flux/dev");
+		expect(manifest.tasks[1]?.inputs?.image_url).toEqual({ task: "fal-image" });
+
+		const results = await runManifest(manifestPath, { dryRun: true });
+		expect(results).toHaveLength(2);
+		expect(results[0]?.provider).toBe("fal");
+	});
 });

@@ -29,9 +29,10 @@ const inputValueSchema = z.union([inputRefSchema, z.array(inputRefSchema)]);
 const taskSchema = z.object({
 	id: z.string(),
 	kind: z.enum(OPERATION_KINDS),
-	provider: z.string().default("openai"),
+	provider: z.string().optional(),
 	profile: z.string().optional(),
 	needs: z.array(z.string()).default([]),
+	model: z.string().optional(),
 	prompt: z.string().optional(),
 	text: z.string().optional(),
 	params: z.record(z.string(), z.unknown()).default({}),
@@ -86,7 +87,7 @@ export async function runManifest(
 		return manifest.tasks.map((task) => ({
 			id: task.id,
 			kind: task.kind,
-			provider: task.provider,
+			provider: taskProvider(task),
 			profile: task.profile,
 			outputs: task.output ? [resolveMaybe(baseDir, task.output)] : [],
 			metadata: {
@@ -158,6 +159,13 @@ function validateManifest(manifest: Manifest): void {
 		}
 		if (task.kind === "audio.generate" && !task.text && !task.prompt) {
 			throw new Error(`Task ${task.id} requires text.`);
+		}
+		if (
+			task.kind === "model.run" &&
+			!task.model &&
+			typeof task.params.model !== "string"
+		) {
+			throw new Error(`Task ${task.id} requires model.`);
 		}
 		if (
 			["audio.transcribe", "audio.translate"].includes(task.kind) &&
@@ -233,18 +241,19 @@ async function executeTask(
 		sidecar: boolean;
 	},
 ): Promise<JobResult> {
-	const provider = getProvider(task.provider);
-	const credential = options.auth.getCredential(task.provider, task.profile);
+	const providerId = taskProvider(task);
+	const provider = getProvider(providerId);
+	const credential = options.auth.getCredential(providerId, task.profile);
 	if (!credential?.apiKey) {
 		throw new Error(
-			`No credentials found for ${task.provider}. Run 'ploof login ${task.provider}'.`,
+			`No credentials found for ${providerId}. Run 'ploof login ${providerId}'.`,
 		);
 	}
 
 	const base = {
 		id: task.id,
 		kind: task.kind as OperationKind,
-		provider: task.provider,
+		provider: providerId,
 		profile: task.profile,
 		prompt: task.prompt ?? "",
 		params: task.params,
@@ -271,6 +280,10 @@ async function executeTask(
 	return provider.run(job, context);
 }
 
+function taskProvider(task: ManifestTask): string {
+	return task.provider ?? (task.kind === "model.run" ? "fal" : "openai");
+}
+
 function buildTaskJob(
 	task: ManifestTask,
 	base: BaseJob,
@@ -284,6 +297,13 @@ function buildTaskJob(
 	},
 ): AssetJob {
 	switch (task.kind) {
+		case "model.run":
+			return {
+				...base,
+				kind: "model.run",
+				model: task.model ?? String(task.params.model ?? ""),
+				inputs,
+			};
 		case "image.generate":
 			return { ...base, kind: "image.generate", prompt: base.prompt ?? "" };
 		case "image.variation":

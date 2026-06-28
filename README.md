@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node version" />
 </p>
 
-Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image, video, and audio generation/processing today, plus the legacy OpenAI image variations endpoint when the authenticated project has access. The provider registry is designed for broader model marketplaces over time.
+Ploof is a CLI for generating and editing creative assets with AI providers. It supports OpenAI image, video, and audio generation/processing, plus fal.ai's model marketplace through the official fal client. The provider registry is designed for broader model marketplaces over time.
 
 It is built for both developers and AI agents: predictable commands, parseable output, local auth profiles, YAML manifests, parallel execution, and a companion skill.
 
@@ -27,6 +27,9 @@ It is built for both developers and AI agents: predictable commands, parseable o
 | OpenAI audio generation / TTS | Supported |
 | OpenAI audio transcription | Supported |
 | OpenAI audio translation | Supported |
+| fal.ai auth profiles | Supported |
+| fal.ai model endpoints | Supported through `ploof model run` |
+| fal.ai image/video/audio endpoints | Supported through `--provider fal --model <endpoint-id>` |
 | Context images and masks | Supported |
 | Image, video, and audio input assets | Supported |
 | YAML/JSON batch manifests | Supported |
@@ -60,6 +63,7 @@ npx @miketromba/ploof --help
 ```bash
 # Authenticate
 ploof login openai --api-key <your-api-key>
+ploof login fal --api-key <your-fal-key>
 
 # Generate an image
 ploof image generate \
@@ -94,6 +98,14 @@ ploof audio transcribe \
 
 # Run a manifest
 ploof run assets.yaml --parallel 4
+
+# Run any fal.ai endpoint directly
+ploof model run \
+  --provider fal \
+  --model fal-ai/flux/dev \
+  --prompt "Friendly CLI mascot icon, simple shape, transparent background" \
+  --param image_size=square_hd \
+  --out assets/icon.png
 ```
 
 ## Authentication
@@ -106,6 +118,8 @@ ploof login openai --api-key <your-api-key> --profile work
 ploof whoami openai
 ploof profiles openai
 ploof logout openai --profile work
+ploof login fal --api-key <your-fal-key>
+ploof whoami fal
 ```
 
 If `--api-key` is omitted, `ploof login openai` reads
@@ -118,6 +132,20 @@ Environment variables override stored credentials:
 export PLOOF_OPENAI_API_KEY=sk-...
 # or
 export OPENAI_API_KEY=sk-...
+
+export PLOOF_FAL_KEY=...
+# or
+export FAL_KEY=...
+```
+
+fal.ai split key environment variables are also supported:
+
+```bash
+export PLOOF_FAL_KEY_ID=...
+export PLOOF_FAL_KEY_SECRET=...
+# or
+export FAL_KEY_ID=...
+export FAL_KEY_SECRET=...
 ```
 
 OpenAI profile metadata:
@@ -129,6 +157,61 @@ ploof login openai \
   --project <project-id> \
   --base-url <url>
 ```
+
+## fal.ai Model Endpoints
+
+fal.ai support uses the official `@fal-ai/client`. Ploof uploads local asset inputs through fal storage, submits work through the fal queue in polling mode, waits for a complete response, and writes returned assets or text to disk.
+
+Use `ploof model run` for arbitrary fal endpoints:
+
+```bash
+ploof model run \
+  --provider fal \
+  --model fal-ai/flux/dev \
+  --prompt "Tiny app icon for a cheerful asset generation CLI" \
+  --param image_size=square_hd \
+  --out assets/fal-icon.png \
+  --output json
+```
+
+Named asset inputs map directly to provider input fields:
+
+```bash
+ploof model run \
+  --provider fal \
+  --model <fal-endpoint-id> \
+  --prompt "Animate this image into a short loop" \
+  --input image_url=assets/source.png \
+  --param duration=4 \
+  --out assets/loop.mp4
+```
+
+The media commands also work with fal when you provide the fal endpoint id as `--model`:
+
+```bash
+ploof image generate \
+  --provider fal \
+  --model fal-ai/flux/dev \
+  --prompt "Soft clay mascot icon" \
+  --param image_size=square_hd \
+  --out assets/mascot.png
+
+ploof video generate \
+  --provider fal \
+  --model <fal-video-endpoint-id> \
+  --prompt "Slow camera push through a miniature paper city" \
+  --input-reference assets/reference.png \
+  --param duration=4 \
+  --out assets/fal-video.mp4
+
+ploof audio generate \
+  --provider fal \
+  --model <fal-audio-endpoint-id> \
+  --text "A short spoken line." \
+  --out assets/fal-audio.mp3
+```
+
+Use `--param key=value` or `--json '{...}'` for endpoint-specific settings. Queue controls include `--start-timeout`, `--timeout`, `--poll-interval`, `--priority low|normal`, and `--storage-expires-in`.
 
 ## Image Generation
 
@@ -376,6 +459,15 @@ tasks:
     params:
       model: gpt-4o-mini-transcribe
     output: assets/transcript.json
+
+  - id: fal-icon
+    kind: model.run
+    provider: fal
+    model: fal-ai/flux/dev
+    prompt: "Small mascot icon for a CLI tool"
+    params:
+      image_size: square_hd
+    output: assets/fal-icon.png
 ```
 
 Run it:
@@ -384,6 +476,8 @@ Run it:
 ploof run assets.yaml --parallel 4
 ploof run assets.yaml --dry-run --output json
 ```
+
+In manifests, media task kinds default to `provider: openai`; `model.run` defaults to `provider: fal`.
 
 ## Output Formats
 
@@ -454,7 +548,7 @@ bun run build
 npm pack --dry-run
 ```
 
-The default test suite includes mocked OpenAI end-to-end tests. Those tests run real `ploof` CLI commands against a local mock OpenAI server and verify generated files, edit uploads, video job polling/downloads, audio generation/processing, sidecar metadata, and dependency-aware manifests without spending API credits.
+The default test suite includes mocked OpenAI end-to-end tests and fal provider unit tests. The OpenAI tests run real `ploof` CLI commands against a local mock OpenAI server and verify generated files, edit uploads, video job polling/downloads, audio generation/processing, sidecar metadata, and dependency-aware manifests without spending API credits. The fal tests verify endpoint payload construction, local input upload mapping, polling options, and output persistence without spending API credits.
 
 Live OpenAI tests are opt-in only:
 
@@ -462,11 +556,19 @@ Live OpenAI tests are opt-in only:
 PLOOF_OPENAI_API_KEY=sk-... bun test tests/e2e
 ```
 
+Live fal.ai tests are also opt-in and use `fal-ai/flux/schnell` by default:
+
+```bash
+PLOOF_FAL_KEY=... bun test tests/e2e/fal-live.test.ts
+```
+
 Optional live-test overrides:
 
 ```bash
 PLOOF_OPENAI_LIVE_MODEL=gpt-image-2
 PLOOF_OPENAI_LIVE_SIZE=1024x1024
+PLOOF_FAL_LIVE_MODEL=fal-ai/flux/schnell
+PLOOF_FAL_LIVE_IMAGE_SIZE_PARAM=image_size=square_hd
 ```
 
 ## Publishing

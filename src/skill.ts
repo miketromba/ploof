@@ -4,7 +4,7 @@ import { getPloofDir } from "./paths";
 
 export const SKILL_CONTENT = `---
 name: asset-generation
-description: Generate, edit, or batch-create AI assets with the ploof CLI. Use when working with generated images, provider auth, asset manifests, image context inputs, masks, or agent-driven creative asset workflows.
+description: Generate, edit, process, or batch-create AI assets with the ploof CLI. Use when working with generated images, videos, audio, arbitrary provider model endpoints, provider auth, asset manifests, image/video/audio context inputs, masks, OpenAI media jobs, fal.ai models, or agent-driven creative asset workflows.
 ---
 
 # Learn ploof from the CLI

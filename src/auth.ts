@@ -181,10 +181,11 @@ function getEnvCredential(
 	if (!auth) return null;
 
 	const apiKey = firstEnvValue(auth.apiKeyEnvVars);
-	if (!apiKey) return null;
+	const pairedApiKey = apiKey ?? firstEnvPair(auth.apiKeyEnvPairs);
+	if (!pairedApiKey) return null;
 
 	return {
-		apiKey,
+		apiKey: pairedApiKey,
 		organization: auth.organizationEnvVar
 			? process.env[auth.organizationEnvVar]
 			: undefined,
@@ -199,6 +200,22 @@ function firstEnvValue(names: readonly string[]): string | undefined {
 	for (const name of names) {
 		const value = process.env[name]?.trim();
 		if (value) return value;
+	}
+	return undefined;
+}
+
+function firstEnvPair(
+	pairs:
+		| readonly {
+				idEnvVar: string;
+				secretEnvVar: string;
+		  }[]
+		| undefined,
+): string | undefined {
+	for (const pair of pairs ?? []) {
+		const id = process.env[pair.idEnvVar]?.trim();
+		const secret = process.env[pair.secretEnvVar]?.trim();
+		if (id && secret) return `${id}:${secret}`;
 	}
 	return undefined;
 }

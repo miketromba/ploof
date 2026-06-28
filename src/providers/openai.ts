@@ -128,6 +128,8 @@ export class OpenAIProvider implements Provider {
 				return this.runAudioTranscribe(job, context);
 			case "audio.translate":
 				return this.runAudioTranslate(job, context);
+			default:
+				throw new Error(`OpenAI does not support ${job.kind}.`);
 		}
 	}
 

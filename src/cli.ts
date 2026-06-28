@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { normalizeImageInputs } from "./assets";
+import { mimeFromPath, normalizeImageInputs } from "./assets";
 import { Auth } from "./auth";
 import { Config, type ConfigValues } from "./config";
 import { CliError, formatError } from "./errors";
@@ -18,6 +18,7 @@ import type {
 	ImageGenerateJob,
 	ImageVariationJob,
 	JobResult,
+	ModelRunJob,
 	OutputOptions,
 	VideoCharacterCreateJob,
 	VideoCharacterGetJob,
@@ -32,7 +33,7 @@ import type {
 	VideoStatusJob,
 } from "./types";
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 type CliOptions = Record<string, unknown> & {
 	apiKey?: string;
@@ -51,6 +52,7 @@ type CliOptions = Record<string, unknown> & {
 	format?: string;
 	image?: string[] | string;
 	include?: string[] | string;
+	input?: string[] | string;
 	instructions?: string;
 	inputReference?: string;
 	inputReferenceFileId?: string;
@@ -59,6 +61,7 @@ type CliOptions = Record<string, unknown> & {
 	json?: string;
 	limit?: number;
 	mask?: string;
+	method?: string;
 	model?: string;
 	moderation?: string;
 	n?: number;
@@ -78,13 +81,16 @@ type CliOptions = Record<string, unknown> & {
 	project?: string;
 	prompt?: string;
 	provider?: string;
+	priority?: string;
 	quality?: string;
 	quiet?: boolean;
 	responseFormat?: string;
 	seconds?: string;
 	sidecar?: boolean;
 	size?: string;
+	startTimeout?: number;
 	stream?: boolean;
+	storageExpiresIn?: string;
 	style?: string;
 	target?: string;
 	temperature?: number;
@@ -141,6 +147,7 @@ Use "ploof <command> --help" for more information about a command.`,
 	registerImage(program);
 	registerVideo(program);
 	registerAudio(program);
+	registerModel(program);
 	registerRun(program);
 	registerLearn(program);
 	registerSkill(program);
@@ -365,12 +372,23 @@ function getAuthEnvApiKey(provider: string): string | undefined {
 		const value = process.env[name]?.trim();
 		if (value) return value;
 	}
+	for (const pair of auth.apiKeyEnvPairs ?? []) {
+		const id = process.env[pair.idEnvVar]?.trim();
+		const secret = process.env[pair.secretEnvVar]?.trim();
+		if (id && secret) return `${id}:${secret}`;
+	}
 	return undefined;
 }
 
 function authEnvHint(provider: string): string {
 	const auth = findProvider(provider)?.auth;
-	if (auth?.apiKeyEnvVars.length) return auth.apiKeyEnvVars.join(" or ");
+	const hints = [
+		...(auth?.apiKeyEnvVars ?? []),
+		...(auth?.apiKeyEnvPairs ?? []).map(
+			(pair) => `${pair.idEnvVar}+${pair.secretEnvVar}`,
+		),
+	];
+	if (hints.length) return hints.join(" or ");
 	return "the provider API key environment variable";
 }
 
@@ -873,6 +891,67 @@ function registerAudio(program: Command): void {
 	);
 }
 
+function registerModel(program: Command): void {
+	const modelCmd = program
+		.command("model")
+		.description("Run provider model endpoints directly");
+
+	modelCmd
+		.command("run")
+		.description("Run a provider model endpoint and write returned assets")
+		.requiredOption("--model <id>", "Provider model or endpoint id")
+		.option("--provider <provider>", "Provider id", "fal")
+		.option("--profile <name>", "Auth profile")
+		.option("--prompt <prompt>", "Prompt input")
+		.option("--text <text>", "Text input")
+		.option(
+			"--input <field=path>",
+			"Named asset input field; repeat for multiple inputs",
+			collect,
+			[],
+		)
+		.option("--out <path>", "Output file or directory")
+		.option("--method <method>", "Provider request method")
+		.option(
+			"--start-timeout <seconds>",
+			"Provider queue start timeout in seconds",
+			parseNumber,
+		)
+		.option(
+			"--timeout <seconds>",
+			"Client-side wait timeout in seconds",
+			parseNumber,
+		)
+		.option(
+			"--poll-interval <seconds>",
+			"Polling interval while waiting",
+			parseNumber,
+		)
+		.option("--priority <priority>", "Provider queue priority")
+		.option(
+			"--storage-expires-in <value>",
+			"Provider object storage expiration, such as 1h, 1d, 30d, or never",
+		)
+		.option("--param <key=value>", "Provider-specific model input", collect, [])
+		.option("--json <object>", "Provider-specific model input JSON object")
+		.action(
+			wrapAction(async (opts: CliOptions, command: Command) => {
+				const allOpts = { ...command.optsWithGlobals(), ...opts };
+				const job: ModelRunJob = {
+					kind: "model.run",
+					provider: allOpts.provider ?? "fal",
+					profile: allOpts.profile,
+					model: allOpts.model ?? "",
+					prompt: allOpts.prompt,
+					output: allOpts.out,
+					params: buildModelRunParams(allOpts),
+					inputs: normalizeNamedInputs(allOpts.input),
+				};
+				await runAndPrint(job, allOpts);
+			}),
+		);
+}
+
 function registerRun(program: Command): void {
 	program
 		.command("run <manifest>")
@@ -1128,6 +1207,58 @@ function buildAudioTranslateParams(opts: CliOptions): Record<string, unknown> {
 		firstClass,
 		parseParamAssignments(opts.param),
 	);
+}
+
+function buildModelRunParams(opts: CliOptions): Record<string, unknown> {
+	const firstClass = compactObject({
+		prompt: opts.prompt,
+		text: opts.text,
+		method: opts.method,
+		start_timeout: opts.startTimeout,
+		timeout_ms:
+			opts.timeout === undefined ? undefined : Math.max(0, opts.timeout * 1000),
+		poll_interval_ms:
+			opts.pollInterval === undefined
+				? undefined
+				: Math.max(0, opts.pollInterval * 1000),
+		priority: opts.priority,
+		storage_expires_in: opts.storageExpiresIn,
+	});
+
+	return mergeObjects(
+		parseJsonObject(opts.json),
+		firstClass,
+		parseParamAssignments(opts.param),
+	);
+}
+
+function normalizeNamedInputs(
+	value: string[] | string | undefined,
+): Array<{ role: string; source: string; mime?: string }> {
+	const values =
+		value === undefined ? [] : Array.isArray(value) ? value : [value];
+	return values.map((entry) => {
+		const index = entry.indexOf("=");
+		if (index === -1) {
+			throw new CliError(
+				`Invalid --input value "${entry}". Use field=path-or-url.`,
+				2,
+			);
+		}
+		const role = entry.slice(0, index).trim();
+		const source = entry.slice(index + 1).trim();
+		if (!role || !source) {
+			throw new CliError(
+				`Invalid --input value "${entry}". Use field=path-or-url.`,
+				2,
+			);
+		}
+		return {
+			role,
+			source,
+			mime: mimeFromPath(source),
+		};
+	});
 }
 
 function normalizeAudioInputs(audio: string | undefined) {

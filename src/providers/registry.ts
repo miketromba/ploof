@@ -1,7 +1,8 @@
 import type { Provider, ProviderId } from "../types";
+import { FalProvider } from "./fal";
 import { OpenAIProvider } from "./openai";
 
-export const PROVIDERS: Provider[] = [new OpenAIProvider()];
+export const PROVIDERS: Provider[] = [new OpenAIProvider(), new FalProvider()];
 
 export function findProvider(id: ProviderId): Provider | undefined {
 	return PROVIDERS.find((candidate) => candidate.id === id);

@@ -12,6 +12,7 @@ export type {
 	ImageEditJob,
 	ImageGenerateJob,
 	JobResult,
+	ModelRunJob,
 	OperationKind,
 	OutputFormat,
 	Provider,

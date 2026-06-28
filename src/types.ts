@@ -1,6 +1,7 @@
 export type ProviderId = "openai" | string;
 
 export const OPERATION_KINDS = [
+	"model.run",
 	"image.generate",
 	"image.edit",
 	"image.variation",
@@ -50,6 +51,10 @@ export interface ProviderCredential {
 
 export interface ProviderAuthDescriptor {
 	apiKeyEnvVars: readonly string[];
+	apiKeyEnvPairs?: readonly {
+		idEnvVar: string;
+		secretEnvVar: string;
+	}[];
 	organizationEnvVar?: string;
 	projectEnvVar?: string;
 	baseURLEnvVar?: string;
@@ -75,6 +80,12 @@ export interface BaseJob {
 export interface ImageGenerateJob extends BaseJob {
 	kind: "image.generate";
 	prompt: string;
+}
+
+export interface ModelRunJob extends BaseJob {
+	kind: "model.run";
+	model: string;
+	inputs: AssetInput[];
 }
 
 export interface ImageEditJob extends BaseJob {
@@ -181,6 +192,7 @@ export interface AudioTranslateJob extends BaseJob {
 }
 
 export type AssetJob =
+	| ModelRunJob
 	| ImageGenerateJob
 	| ImageEditJob
 	| ImageVariationJob

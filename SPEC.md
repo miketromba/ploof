@@ -2,7 +2,7 @@
 
 ## Summary
 
-Ploof is an npm-published CLI for generating, editing, and processing assets through AI generation providers. It starts with OpenAI image, video, and audio generation/processing, but the architecture must support multiple authenticated providers, multiple asset modalities, provider-specific settings, and parallel execution across mixed jobs.
+Ploof is an npm-published CLI for generating, editing, and processing assets through AI generation providers. It supports OpenAI image, video, and audio generation/processing plus fal.ai model endpoints, while preserving an architecture for multiple authenticated providers, multiple asset modalities, provider-specific settings, and parallel execution across mixed jobs.
 
 The product should feel like a small, sharp developer tool: easy to run manually, predictable in scripts, and optimized for AI agents.
 
@@ -80,10 +80,11 @@ Local release verification must stop at `npm pack --dry-run`; do not run local
 
 ## Initial Provider Scope
 
-Version 1 starts with OpenAI only.
+The current provider scope includes OpenAI and fal.ai.
 
-Initial capabilities:
+Core operation kinds:
 
+- `model.run`
 - `image.generate`
 - `image.edit`
 - `image.variation`
@@ -103,9 +104,13 @@ Initial capabilities:
 
 Future providers should be added through the provider registry without changing the manifest model.
 
+Provider notes:
+
+- OpenAI has first-class implementations for images, videos, audio/TTS, transcription, translation, and OpenAI video library operations.
+- fal.ai uses the official `@fal-ai/client`, supports arbitrary endpoints through `model.run`, and supports image/video/audio commands when the chosen fal endpoint schema matches the command shape.
+
 Future high-leverage provider candidates:
 
-- fal.ai: strong multi-model generative media coverage.
 - Replicate: broad community model marketplace.
 - Hugging Face Inference Providers: centralized access to many hosted models/providers.
 
@@ -139,8 +144,12 @@ Environment overrides:
 
 - `PLOOF_OPENAI_API_KEY`
 - `OPENAI_API_KEY`
+- `PLOOF_FAL_KEY`
+- `FAL_KEY`
+- `PLOOF_FAL_KEY_ID` and `PLOOF_FAL_KEY_SECRET`
+- `FAL_KEY_ID` and `FAL_KEY_SECRET`
 
-The Ploof-specific env var wins over the provider-native env var. Stored credentials are used only when no env override is present.
+The Ploof-specific env var wins over the provider-native env var. Stored credentials are used only when no env override is present. Split fal.ai key id/secret pairs are joined into the token format expected by the fal client.
 
 OpenAI profile metadata may also include:
 
@@ -166,9 +175,10 @@ OpenAI profile metadata may also include:
 
 ```bash
 ploof login openai --api-key <key> [--profile default] [--organization org] [--project proj] [--base-url url]
+ploof login fal --api-key <key> [--profile default]
 ploof whoami [provider] [--profile default]
 ploof profiles [provider]
-ploof logout openai [--profile default]
+ploof logout <provider> [--profile default]
 ```
 
 `login`, `whoami`, `profiles`, and `logout` are the only authentication
@@ -178,6 +188,10 @@ commands. Ploof should not expose a second equivalent auth namespace.
 `OPENAI_API_KEY` when the flag is omitted, and prompts without echoing input
 when run in an interactive terminal. Non-interactive login fails if no key is
 provided.
+
+`ploof login fal` accepts `--api-key`, reads `PLOOF_FAL_KEY` or `FAL_KEY`, and
+also supports `PLOOF_FAL_KEY_ID`/`PLOOF_FAL_KEY_SECRET` or
+`FAL_KEY_ID`/`FAL_KEY_SECRET` pairs.
 
 ### Config
 
@@ -241,6 +255,48 @@ endpoint only supports that model. This endpoint is supported when the
 authenticated project has DALL-E 2 variation access; if OpenAI returns a 404,
 use `ploof image edit` for image-to-image workflows. `ploof image variations`
 is an alias.
+
+### Generic Model Endpoints
+
+`model.run` executes arbitrary provider model endpoints. It is primarily useful
+for model marketplaces such as fal.ai, where the endpoint schema is selected by
+`--model`.
+
+```bash
+ploof model run \
+  --provider fal \
+  --model fal-ai/flux/dev \
+  --prompt "Small mascot icon for a CLI tool" \
+  --param image_size=square_hd \
+  --out assets/fal-icon.png \
+  --output json
+```
+
+Named inputs preserve exact provider field names:
+
+```bash
+ploof model run \
+  --provider fal \
+  --model <fal-endpoint-id> \
+  --prompt "Animate this source image" \
+  --input image_url=assets/source.png \
+  --param duration=4 \
+  --out assets/clip.mp4
+```
+
+Model endpoint controls:
+
+- `--param key=value`
+- `--json '{...}'`
+- `--input field=path-or-url`
+- `--start-timeout <seconds>`
+- `--timeout <seconds>`
+- `--poll-interval <seconds>`
+- `--priority low|normal`
+- `--storage-expires-in <value>`
+
+fal.ai commands should use queue polling and write complete returned assets or
+text outputs to disk.
 
 ### Video Generation
 
@@ -386,6 +442,9 @@ because they do not directly produce finished asset files.
 ploof run assets.yaml --parallel 4
 ```
 
+Manifest media task kinds default to `provider: openai`; `model.run` defaults
+to `provider: fal`.
+
 Manifest example:
 
 ```yaml
@@ -454,6 +513,15 @@ tasks:
     params:
       model: gpt-4o-mini-transcribe
     output: assets/transcript.json
+
+  - id: fal-icon
+    kind: model.run
+    provider: fal
+    model: fal-ai/flux/dev
+    prompt: "Small mascot icon for a CLI tool"
+    params:
+      image_size: square_hd
+    output: assets/fal-icon.png
 ```
 
 ## Asset Input Model
@@ -495,6 +563,18 @@ OpenAI audio processing maps:
 
 - `role=audio` to the uploaded audio file for transcription or translation.
 
+fal.ai media commands map common roles to URL fields:
+
+- `role=image` and `role=reference` to `image_url`.
+- `role=mask` to `mask_url`.
+- `role=style` to `style_image_url`.
+- `role=audio` to `audio_url`.
+- `role=video` to `video_url`.
+
+fal.ai `model.run` preserves exact input field names, so
+`inputs.image_url` or `--input image_url=source.png` becomes `image_url` in the
+provider input payload.
+
 Future providers can map roles such as `reference`, `style`, `init-image`, `audio`, or `video` differently.
 
 ## Provider Architecture
@@ -508,6 +588,7 @@ type Provider = {
   capabilities: ProviderCapability[]
   auth?: {
     apiKeyEnvVars: string[]
+    apiKeyEnvPairs?: Array<{ idEnvVar: string; secretEnvVar: string }>
     organizationEnvVar?: string
     projectEnvVar?: string
     baseURLEnvVar?: string
@@ -572,6 +653,11 @@ Asset-producing commands should write the asset to disk and print structured met
   }
 }
 ```
+
+Ploof is a static asset generation tool. Providers may use asynchronous jobs,
+polling, or queue subscriptions internally, but CLI consumers receive completed
+files or text outputs after the command finishes. Streaming transports should
+not be exposed as the primary consumption model.
 
 Each generated file should have an optional sidecar metadata file:
 
