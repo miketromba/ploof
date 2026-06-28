@@ -1,0 +1,14 @@
+{
+	"name": "Ploof",
+	"short_name": "Ploof",
+	"description": "The agent-native CLI for AI asset generation.",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#fdf4ed",
+	"theme_color": "#7c5cf0",
+	"icons": [
+		{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+		{ "src": "/mascot.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
+	]
+}

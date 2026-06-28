@@ -1,0 +1,61 @@
+---
+import Icon from "./Icon.astro";
+
+const features = [
+	{
+		icon: "bot",
+		title: "Agent-native",
+		body: "Built to be driven by coding agents. ploof learn self-documents the installed version; output is clean JSON/JSONL with predictable exit codes.",
+	},
+	{
+		icon: "wand",
+		title: "Every modality",
+		body: "Images, video, and audio — generate, edit, extend, transcribe, and translate, all behind one consistent command surface.",
+	},
+	{
+		icon: "layers",
+		title: "Multi-provider",
+		body: "OpenAI today, plus fal.ai's entire model marketplace via model run. The provider registry is built to keep growing.",
+	},
+	{
+		icon: "repeat",
+		title: "Batch & parallel",
+		body: "Declare assets in a YAML manifest, wire dependencies with needs, and run them concurrently with a single command.",
+	},
+	{
+		icon: "key",
+		title: "Local auth profiles",
+		body: "Keep multiple keys per provider in ~/.ploof, switch with --profile, or override from environment variables in CI.",
+	},
+	{
+		icon: "sparkles",
+		title: "Reproducible",
+		body: "Every asset gets a <file>.json sidecar recording the prompt, params, and provider metadata — so any result is repeatable.",
+	},
+] as const;
+---
+
+<section id="features" class="container-px scroll-mt-24 py-20 sm:py-24">
+	<div class="mx-auto max-w-2xl text-center">
+		<h2 class="text-3xl font-extrabold sm:text-4xl">
+			A small, sharp tool that <span class="gradient-text">does the boring parts.</span>
+		</h2>
+		<p class="mt-4 text-lg text-muted">
+			No SDK wiring, no polling loops, no glue code. Just prompts in, files out.
+		</p>
+	</div>
+
+	<div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+		{
+			features.map((f) => (
+				<div class="card group p-6 transition duration-300 hover:-translate-y-1 hover:shadow-lift">
+					<div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-violet-400 text-white shadow-soft">
+						<Icon name={f.icon} class="h-5 w-5" />
+					</div>
+					<h3 class="mt-4 text-lg font-bold">{f.title}</h3>
+					<p class="mt-2 text-[15px] leading-relaxed text-muted">{f.body}</p>
+				</div>
+			))
+		}
+	</div>
+</section>

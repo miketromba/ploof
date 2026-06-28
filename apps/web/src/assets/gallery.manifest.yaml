@@ -1,0 +1,56 @@
+version: 1
+parallel: 4
+tasks:
+  - id: mascot
+    kind: image.generate
+    prompt: "Adorable 3D character of a fluffy white cloud with a cheerful face and tiny arms holding a small glowing retro computer terminal, floating above soft pastel clouds, lavender and peach gradient background, gentle sparkles, octane render, soft studio lighting, ultra cute, high detail"
+    params: { model: gpt-image-2, size: 1024x1024, quality: high }
+    output: images/mascot.png
+
+  - id: bottle
+    kind: image.generate
+    prompt: "Studio product photograph of a matte black insulated water bottle on white marble, soft natural daylight, subtle reflections, premium minimal e-commerce look, shot on 50mm"
+    params: { model: gpt-image-2, size: 1024x1024, quality: medium }
+    output: images/bottle.png
+
+  - id: city
+    kind: image.generate
+    prompt: "Wide cinematic tilt-shift photograph of a miniature paper city at blue hour, tiny warm glowing windows, soft fog drifting between paper skyscrapers, dreamy shallow depth of field"
+    params: { model: gpt-image-2, size: 1536x1024, quality: medium }
+    output: images/city.png
+
+  - id: portrait
+    kind: image.generate
+    prompt: "Editorial portrait of a woman with freckles, dramatic warm side lighting, soft film grain, muted earthy tones, shallow depth of field, shot on 85mm"
+    params: { model: gpt-image-2, size: 1024x1536, quality: medium }
+    output: images/portrait.png
+
+  - id: icon
+    kind: image.generate
+    prompt: "3D isometric app icon of a friendly robot mascot made of soft matte clay, pastel lilac and mint, rounded squircle, subtle studio shadow, clean light background, dribbble style"
+    params: { model: gpt-image-2, size: 1024x1024, quality: medium }
+    output: images/icon.png
+
+  - id: coffee
+    kind: image.generate
+    prompt: "Overhead flat lay photograph of a flat white coffee with latte art and a flaky croissant on a natural linen tablecloth, soft morning light, minimal styling, warm tones"
+    params: { model: gpt-image-2, size: 1024x1024, quality: medium }
+    output: images/coffee.png
+
+  - id: illustration
+    kind: image.generate
+    prompt: "Flat vector illustration of a happy developer at a desk surrounded by floating UI panels and sparkles, soft pastel palette, clean rounded shapes, friendly modern tech brand style"
+    params: { model: gpt-image-2, size: 1536x1024, quality: medium }
+    output: images/illustration.png
+
+  - id: blob
+    kind: image.generate
+    prompt: "Abstract glossy 3D gradient blob, smooth liquid iridescent surface, lavender to peach, soft studio lighting on a clean off-white background, minimal, high detail"
+    params: { model: gpt-image-2, size: 1024x1024, quality: medium }
+    output: images/blob.png
+
+  - id: voiceover
+    kind: audio.generate
+    text: "Ploof turns a prompt into a finished asset. Hand it to your agent, and watch your ideas show up as files."
+    params: { model: gpt-4o-mini-tts, voice: alloy, response_format: mp3 }
+    output: audio/voiceover.mp3

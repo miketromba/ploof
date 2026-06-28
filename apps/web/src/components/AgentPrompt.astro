@@ -1,0 +1,51 @@
+---
+import { AGENT_PROMPT } from "../consts";
+import Icon from "./Icon.astro";
+
+interface Props {
+	class?: string;
+}
+const { class: className = "" } = Astro.props;
+---
+
+<div class={`card overflow-hidden ${className}`}>
+	<!-- header -->
+	<div class="flex items-center justify-between gap-3 border-b border-violet-100 px-3.5 py-2.5">
+		<div class="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink">
+			<span
+				class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-violet-400 text-white"
+			>
+				<Icon name="bot" class="h-4 w-4" />
+			</span>
+			<span class="truncate">Paste into your coding agent</span>
+		</div>
+		<button
+			type="button"
+			class="copy-prompt btn-primary shrink-0 !px-3.5 !py-1.5 text-xs"
+			data-copy={AGENT_PROMPT}
+			aria-label="Copy the agent prompt"
+		>
+			<Icon name="copy" class="copy-icon h-3.5 w-3.5" />
+			<Icon name="check" class="check-icon h-3.5 w-3.5" />
+			<span data-copy-label>Copy prompt</span>
+		</button>
+	</div>
+
+	<!-- prompt body -->
+	<div class="bg-[#1c172e] p-4 sm:p-5">
+		<pre
+			class="overflow-x-auto whitespace-pre-wrap break-words font-mono text-[12.5px] leading-[1.7] text-violet-50/95">{AGENT_PROMPT}</pre>
+	</div>
+</div>
+
+<style>
+	.check-icon {
+		display: none;
+	}
+	.copy-prompt.is-copied .check-icon {
+		display: inline;
+	}
+	.copy-prompt.is-copied .copy-icon {
+		display: none;
+	}
+</style>

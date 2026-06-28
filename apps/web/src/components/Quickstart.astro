@@ -1,0 +1,64 @@
+---
+import AgentPrompt from "./AgentPrompt.astro";
+import CodeBlock from "./CodeBlock.astro";
+import Icon from "./Icon.astro";
+
+const manual = `# 1 — install
+bun i -g @miketromba/ploof
+
+# 2 — authenticate (stored in ~/.ploof)
+ploof login openai --api-key sk-...
+
+# 3 — generate your first asset
+ploof image generate \\
+  --prompt "Studio product photo of a matte black bottle" \\
+  --out hero.png`;
+---
+
+<section id="quickstart" class="container-px scroll-mt-24 py-20 sm:py-24">
+	<div class="mx-auto max-w-2xl text-center">
+		<h2 class="text-3xl font-extrabold sm:text-4xl">
+			Two ways to <span class="gradient-text">start.</span>
+		</h2>
+		<p class="mt-4 text-lg text-muted">
+			Let your agent do it (the usual path), or drive the CLI yourself.
+		</p>
+	</div>
+
+	<div class="mt-12 grid items-start gap-6 lg:grid-cols-2">
+		<!-- agent path -->
+		<div class="relative">
+			<div class="absolute -top-3 left-6 z-10 inline-flex items-center gap-1.5 rounded-full bg-violet-500 px-3 py-1 text-[11px] font-bold tracking-wide text-white uppercase shadow-soft">
+				<Icon name="sparkles" class="h-3 w-3" /> Recommended
+			</div>
+			<div class="card h-full p-5 pt-7">
+				<h3 class="flex items-center gap-2 text-lg font-bold">
+					<Icon name="bot" class="h-5 w-5 text-violet-600" /> With your coding agent
+				</h3>
+				<p class="mt-2 text-sm text-muted">
+					Paste the prompt, then tell it what to make. It installs Ploof, reads
+					<code class="rounded bg-violet-100 px-1 py-0.5 font-mono text-[11px] text-violet-700">ploof learn</code>, and handles the rest.
+				</p>
+				<div class="mt-4">
+					<AgentPrompt />
+				</div>
+			</div>
+		</div>
+
+		<!-- manual path -->
+		<div class="card h-full p-5">
+			<h3 class="flex items-center gap-2 text-lg font-bold">
+				<Icon name="terminal" class="h-5 w-5 text-violet-600" /> By hand
+			</h3>
+			<p class="mt-2 text-sm text-muted">
+				Prefer to drive it yourself? Three commands to your first asset.
+			</p>
+			<div class="mt-4">
+				<CodeBlock code={manual} label="terminal" />
+			</div>
+			<a href="/docs" class="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 hover:text-violet-500">
+				Full command reference <Icon name="arrowRight" class="h-4 w-4" />
+			</a>
+		</div>
+	</div>
+</section>

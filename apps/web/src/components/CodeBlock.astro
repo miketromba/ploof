@@ -1,0 +1,51 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+	code: string;
+	label?: string;
+	class?: string;
+}
+const { code, label, class: className = "" } = Astro.props;
+---
+
+<div
+	class={`code-block group relative overflow-hidden rounded-2xl border border-violet-200/40 bg-[#1c172e] shadow-soft ${className}`}
+>
+	{
+		label && (
+			<div class="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+				<span class="flex gap-1.5" aria-hidden="true">
+					<span class="h-2.5 w-2.5 rounded-full bg-[#ff6b6b]/70" />
+					<span class="h-2.5 w-2.5 rounded-full bg-[#ffd479]/70" />
+					<span class="h-2.5 w-2.5 rounded-full bg-[#6bd968]/70" />
+				</span>
+				<span class="ml-1 font-mono text-xs text-violet-200/60">{label}</span>
+			</div>
+		)
+	}
+	<button
+		type="button"
+		class="copy-btn absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-violet-100 backdrop-blur transition hover:bg-white/15"
+		data-copy={code}
+		aria-label="Copy to clipboard"
+	>
+		<Icon name="copy" class="copy-icon h-3.5 w-3.5" />
+		<Icon name="check" class="check-icon h-3.5 w-3.5 text-[#6bd968]" />
+		<span data-copy-label>Copy</span>
+	</button>
+	<pre
+		class="overflow-x-auto px-4 py-4 font-mono text-[13px] leading-relaxed text-violet-50"><code>{code}</code></pre>
+</div>
+
+<style>
+	.check-icon {
+		display: none;
+	}
+	.copy-btn.is-copied .check-icon {
+		display: inline;
+	}
+	.copy-btn.is-copied .copy-icon {
+		display: none;
+	}
+</style>

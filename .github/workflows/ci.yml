@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  cli:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -18,6 +18,21 @@ jobs:
           bun-version: latest
       - run: bun install
       - run: bun run lint
+        working-directory: packages/cli
       - run: bunx tsc --noEmit
+        working-directory: packages/cli
       - run: bun test
+        working-directory: packages/cli
       - run: bun run build
+        working-directory: packages/cli
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - run: bun run build
+        working-directory: apps/web

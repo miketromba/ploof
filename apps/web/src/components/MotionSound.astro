@@ -1,0 +1,72 @@
+---
+import Icon from "./Icon.astro";
+
+const videoPrompt =
+	"Slow cinematic dolly push through a miniature paper city at blue hour, tilt-shift, tiny glowing windows, soft drifting fog.";
+const audioText =
+	"Ploof turns a prompt into a finished asset. Hand it to your agent, and watch your ideas show up as files.";
+---
+
+<section id="motion" class="container-px scroll-mt-24 py-12 sm:py-16">
+	<div class="mx-auto mb-12 max-w-2xl text-center">
+		<h2 class="text-3xl font-extrabold sm:text-4xl">
+			Video and audio, <span class="gradient-text">too.</span>
+		</h2>
+		<p class="mt-4 text-lg text-muted">
+			The same CLI generates motion and sound — the clip and voiceover below are
+			straight out of Ploof.
+		</p>
+	</div>
+
+	<div class="grid gap-6 lg:grid-cols-2">
+		<!-- video -->
+		<figure class="card overflow-hidden p-1.5">
+			<div class="relative overflow-hidden rounded-[1.35rem]">
+				<video
+					class="aspect-video w-full bg-violet-100 object-cover"
+					autoplay
+					muted
+					loop
+					playsinline
+					preload="metadata"
+					poster="/media/city-poster.png"
+				>
+					<source src="/media/city.mp4" type="video/mp4" />
+				</video>
+				<span class="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-white/30 bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+					<Icon name="film" class="h-3 w-3" /> video · sora-2
+				</span>
+			</div>
+			<figcaption class="px-3.5 py-3">
+				<p class="text-sm text-muted">“{videoPrompt}”</p>
+				<code class="mt-2.5 block overflow-x-auto rounded-lg bg-violet-50 px-3 py-2 font-mono text-[12px] text-violet-700">ploof video generate --prompt "…" --seconds 4 --out city.mp4</code>
+			</figcaption>
+		</figure>
+
+		<!-- audio -->
+		<figure class="card flex flex-col p-1.5">
+			<div class="relative flex flex-1 flex-col justify-center overflow-hidden rounded-[1.35rem] bg-gradient-to-br from-violet-500 via-violet-400 to-blush p-6 text-white">
+				<span class="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-white/30 bg-black/25 px-2.5 py-1 text-[11px] font-semibold backdrop-blur">
+					<Icon name="audio" class="h-3 w-3" /> audio · gpt-4o-mini-tts
+				</span>
+				<div class="mt-6 flex h-16 items-center justify-center gap-1" aria-hidden="true">
+					{
+						Array.from({ length: 40 }).map((_, i) => (
+							<span
+								class="w-1 rounded-full bg-white/80"
+								style={`height:${20 + Math.round(Math.abs(Math.sin(i * 0.9)) * 75)}%`}
+							/>
+						))
+					}
+				</div>
+				<audio controls preload="none" class="mt-5 w-full">
+					<source src="/media/voiceover.mp3" type="audio/mpeg" />
+				</audio>
+			</div>
+			<figcaption class="px-3.5 py-3">
+				<p class="text-sm text-muted">“{audioText}”</p>
+				<code class="mt-2.5 block overflow-x-auto rounded-lg bg-violet-50 px-3 py-2 font-mono text-[12px] text-violet-700">ploof audio generate --text "…" --voice alloy --out vo.mp3</code>
+			</figcaption>
+		</figure>
+	</div>
+</section>
