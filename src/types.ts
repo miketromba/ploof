@@ -1,22 +1,25 @@
 export type ProviderId = "openai" | string;
 
-export type OperationKind =
-	| "image.generate"
-	| "image.edit"
-	| "image.variation"
-	| "video.generate"
-	| "video.edit"
-	| "video.extend"
-	| "video.remix"
-	| "video.status"
-	| "video.download"
-	| "video.list"
-	| "video.delete"
-	| "video.character.create"
-	| "video.character.get"
-	| "audio.generate"
-	| "audio.transcribe"
-	| "audio.translate";
+export const OPERATION_KINDS = [
+	"image.generate",
+	"image.edit",
+	"image.variation",
+	"video.generate",
+	"video.edit",
+	"video.extend",
+	"video.remix",
+	"video.status",
+	"video.download",
+	"video.list",
+	"video.delete",
+	"video.character.create",
+	"video.character.get",
+	"audio.generate",
+	"audio.transcribe",
+	"audio.translate",
+] as const;
+
+export type OperationKind = (typeof OPERATION_KINDS)[number];
 
 export type VideoDownloadVariant = "video" | "thumbnail" | "spritesheet";
 
@@ -26,7 +29,8 @@ export type AssetRole =
 	| "reference"
 	| "style"
 	| "audio"
-	| "video";
+	| "video"
+	| (string & {});
 
 export interface AssetInput {
 	role: AssetRole;
@@ -42,6 +46,13 @@ export interface ProviderCredential {
 	baseURL?: string;
 	source?: "env" | "stored";
 	profile?: string;
+}
+
+export interface ProviderAuthDescriptor {
+	apiKeyEnvVars: readonly string[];
+	organizationEnvVar?: string;
+	projectEnvVar?: string;
+	baseURLEnvVar?: string;
 }
 
 export interface ProviderContext {
@@ -198,62 +209,10 @@ export interface JobResult {
 
 export interface Provider {
 	id: ProviderId;
+	displayName?: string;
 	capabilities: readonly OperationKind[];
-	runImageGenerate(
-		job: ImageGenerateJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runImageEdit(job: ImageEditJob, context: ProviderContext): Promise<JobResult>;
-	runImageVariation(
-		job: ImageVariationJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runVideoGenerate(
-		job: VideoGenerateJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runVideoEdit(job: VideoEditJob, context: ProviderContext): Promise<JobResult>;
-	runVideoExtend(
-		job: VideoExtendJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runVideoRemix(
-		job: VideoRemixJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runVideoStatus(
-		job: VideoStatusJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runVideoDownload(
-		job: VideoDownloadJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runVideoList(job: VideoListJob, context: ProviderContext): Promise<JobResult>;
-	runVideoDelete(
-		job: VideoDeleteJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runVideoCharacterCreate(
-		job: VideoCharacterCreateJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runVideoCharacterGet(
-		job: VideoCharacterGetJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runAudioGenerate(
-		job: AudioGenerateJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runAudioTranscribe(
-		job: AudioTranscribeJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
-	runAudioTranslate(
-		job: AudioTranslateJob,
-		context: ProviderContext,
-	): Promise<JobResult>;
+	auth?: ProviderAuthDescriptor;
+	run(job: AssetJob, context: ProviderContext): Promise<JobResult>;
 }
 
 export type OutputFormat = "table" | "compact" | "json" | "jsonl";

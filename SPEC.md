@@ -462,12 +462,17 @@ All input/context assets are normalized before provider execution:
 
 ```ts
 type AssetInput = {
-  role: 'image' | 'mask' | 'reference' | 'style' | 'audio' | 'video'
+  role: 'image' | 'mask' | 'reference' | 'style' | 'audio' | 'video' | string
   source: string
   mime?: string
   name?: string
 }
 ```
+
+Manifest `inputs` are a role map. Built-in aliases such as `images`,
+`inputReference`, and `videos` normalize to `image`, `reference`, and `video`,
+but providers can also consume custom roles like `style`, `control`, `pose`, or
+`initImage` without changing the manifest schema.
 
 Supported sources:
 
@@ -499,34 +504,36 @@ Provider modules implement a common interface:
 ```ts
 type Provider = {
   id: string
+  displayName?: string
   capabilities: ProviderCapability[]
-  runImageGenerate(job, context): Promise<ProviderResult>
-  runImageEdit(job, context): Promise<ProviderResult>
-  runImageVariation(job, context): Promise<ProviderResult>
-  runVideoGenerate(job, context): Promise<ProviderResult>
-  runVideoEdit(job, context): Promise<ProviderResult>
-  runVideoExtend(job, context): Promise<ProviderResult>
-  runVideoRemix(job, context): Promise<ProviderResult>
-  runVideoStatus(job, context): Promise<ProviderResult>
-  runVideoDownload(job, context): Promise<ProviderResult>
-  runVideoList(job, context): Promise<ProviderResult>
-  runVideoDelete(job, context): Promise<ProviderResult>
-  runVideoCharacterCreate(job, context): Promise<ProviderResult>
-  runVideoCharacterGet(job, context): Promise<ProviderResult>
-  runAudioGenerate(job, context): Promise<ProviderResult>
-  runAudioTranscribe(job, context): Promise<ProviderResult>
-  runAudioTranslate(job, context): Promise<ProviderResult>
+  auth?: {
+    apiKeyEnvVars: string[]
+    organizationEnvVar?: string
+    projectEnvVar?: string
+    baseURLEnvVar?: string
+  }
+  run(job, context): Promise<ProviderResult>
 }
 ```
 
 The provider registry owns:
 
 - Provider lookup.
-- Capability checks.
-- Credential resolution.
+- Auth metadata lookup.
+- Capability discovery.
+
+Provider modules own:
+
 - Provider-specific validation.
+- Provider SDK/client mapping.
+- Dispatch from generic `AssetJob` objects to internal operation handlers.
+- Output persistence details when the provider returns URLs, binary responses, or
+  structured data.
 
 The CLI should avoid hardcoding all provider behavior into command handlers.
+Manifest execution should build generic `AssetJob` objects and call
+`provider.run(job, context)` rather than calling modality-specific provider
+methods directly.
 
 ## Settings Strategy
 

@@ -72,4 +72,34 @@ describe("manifest", () => {
 			"depends on unknown task",
 		);
 	});
+
+	test("accepts generic input role maps", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "ploof-manifest-inputs-"));
+		const manifestPath = join(dir, "assets.yaml");
+		writeFileSync(
+			manifestPath,
+			[
+				"version: 1",
+				"tasks:",
+				"  - id: base",
+				"    kind: image.generate",
+				'    prompt: "base"',
+				"    output: base.png",
+				"  - id: edit",
+				"    kind: image.edit",
+				"    needs: [base]",
+				'    prompt: "edit"',
+				"    inputs:",
+				"      image:",
+				"        task: base",
+				"      style:",
+				"        source: style.png",
+				"    output: edit.png",
+			].join("\n"),
+		);
+
+		const manifest = await parseManifest(manifestPath);
+		expect(manifest.tasks[1]?.inputs?.image).toEqual({ task: "base" });
+		expect(manifest.tasks[1]?.inputs?.style).toEqual({ source: "style.png" });
+	});
 });

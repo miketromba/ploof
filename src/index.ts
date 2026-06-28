@@ -5,13 +5,16 @@ export { getLearnOutput } from "./learn";
 export { parseManifest, runManifest } from "./manifest";
 export { formatResult, resolveFormat } from "./output";
 export { parseJsonObject, parseParamAssignments } from "./params";
-export { getProvider, PROVIDERS } from "./providers/registry";
+export { findProvider, getProvider, PROVIDERS } from "./providers/registry";
 export type {
 	AssetInput,
+	AssetJob,
 	ImageEditJob,
 	ImageGenerateJob,
 	JobResult,
+	OperationKind,
 	OutputFormat,
 	Provider,
+	ProviderAuthDescriptor,
 	ProviderContext,
 } from "./types";

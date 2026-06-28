@@ -6,6 +6,7 @@ import {
 	writeSidecar,
 } from "../assets";
 import type {
+	AssetJob,
 	AudioGenerateJob,
 	AudioTranscribeJob,
 	AudioTranslateJob,
@@ -67,6 +68,13 @@ type ImagesApi = {
 
 export class OpenAIProvider implements Provider {
 	id = "openai";
+	displayName = "OpenAI";
+	auth = {
+		apiKeyEnvVars: ["PLOOF_OPENAI_API_KEY", "OPENAI_API_KEY"],
+		organizationEnvVar: "PLOOF_OPENAI_ORG",
+		projectEnvVar: "PLOOF_OPENAI_PROJECT",
+		baseURLEnvVar: "PLOOF_OPENAI_BASE_URL",
+	} as const;
 	capabilities = [
 		"image.generate",
 		"image.edit",
@@ -85,6 +93,43 @@ export class OpenAIProvider implements Provider {
 		"audio.transcribe",
 		"audio.translate",
 	] as const;
+
+	async run(job: AssetJob, context: ProviderContext): Promise<JobResult> {
+		switch (job.kind) {
+			case "image.generate":
+				return this.runImageGenerate(job, context);
+			case "image.edit":
+				return this.runImageEdit(job, context);
+			case "image.variation":
+				return this.runImageVariation(job, context);
+			case "video.generate":
+				return this.runVideoGenerate(job, context);
+			case "video.edit":
+				return this.runVideoEdit(job, context);
+			case "video.extend":
+				return this.runVideoExtend(job, context);
+			case "video.remix":
+				return this.runVideoRemix(job, context);
+			case "video.status":
+				return this.runVideoStatus(job, context);
+			case "video.download":
+				return this.runVideoDownload(job, context);
+			case "video.list":
+				return this.runVideoList(job, context);
+			case "video.delete":
+				return this.runVideoDelete(job, context);
+			case "video.character.create":
+				return this.runVideoCharacterCreate(job, context);
+			case "video.character.get":
+				return this.runVideoCharacterGet(job, context);
+			case "audio.generate":
+				return this.runAudioGenerate(job, context);
+			case "audio.transcribe":
+				return this.runAudioTranscribe(job, context);
+			case "audio.translate":
+				return this.runAudioTranslate(job, context);
+		}
+	}
 
 	async runImageGenerate(
 		job: ImageGenerateJob,

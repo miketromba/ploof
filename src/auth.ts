@@ -8,6 +8,7 @@ import {
 import { dirname, join } from "node:path";
 import { z } from "zod";
 import { getPloofDir } from "./paths";
+import { findProvider } from "./providers/registry";
 import type { ProviderCredential } from "./types";
 
 const profileSchema = z.object({
@@ -106,19 +107,9 @@ export class Auth {
 	}
 
 	getCredential(provider: string, profile?: string): ProviderCredential | null {
-		if (provider === "openai") {
-			const envKey =
-				process.env.PLOOF_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
-			if (envKey) {
-				return {
-					apiKey: envKey,
-					organization: process.env.PLOOF_OPENAI_ORG,
-					project: process.env.PLOOF_OPENAI_PROJECT,
-					baseURL: process.env.PLOOF_OPENAI_BASE_URL,
-					source: "env",
-					profile: profile ?? "env",
-				};
-			}
+		const envCredential = getEnvCredential(provider, profile);
+		if (envCredential) {
+			return envCredential;
 		}
 
 		const data = this.read();
@@ -180,6 +171,36 @@ export class Auth {
 			// Best effort for platforms that do not support chmod.
 		}
 	}
+}
+
+function getEnvCredential(
+	provider: string,
+	profile?: string,
+): ProviderCredential | null {
+	const auth = findProvider(provider)?.auth;
+	if (!auth) return null;
+
+	const apiKey = firstEnvValue(auth.apiKeyEnvVars);
+	if (!apiKey) return null;
+
+	return {
+		apiKey,
+		organization: auth.organizationEnvVar
+			? process.env[auth.organizationEnvVar]
+			: undefined,
+		project: auth.projectEnvVar ? process.env[auth.projectEnvVar] : undefined,
+		baseURL: auth.baseURLEnvVar ? process.env[auth.baseURLEnvVar] : undefined,
+		source: "env",
+		profile: profile ?? "env",
+	};
+}
+
+function firstEnvValue(names: readonly string[]): string | undefined {
+	for (const name of names) {
+		const value = process.env[name]?.trim();
+		if (value) return value;
+	}
+	return undefined;
 }
 
 export function maskKey(key: string): string {

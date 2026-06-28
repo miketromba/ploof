@@ -5,7 +5,14 @@ import { z } from "zod";
 import { Auth } from "./auth";
 import type { Config } from "./config";
 import { getProvider } from "./providers/registry";
-import type { AssetInput, JobResult, OperationKind } from "./types";
+import {
+	type AssetInput,
+	type AssetJob,
+	type BaseJob,
+	type JobResult,
+	OPERATION_KINDS,
+	type OperationKind,
+} from "./types";
 
 const inputRefSchema = z.union([
 	z.string(),
@@ -17,26 +24,11 @@ const inputRefSchema = z.union([
 	}),
 ]);
 
+const inputValueSchema = z.union([inputRefSchema, z.array(inputRefSchema)]);
+
 const taskSchema = z.object({
 	id: z.string(),
-	kind: z.enum([
-		"image.generate",
-		"image.edit",
-		"image.variation",
-		"video.generate",
-		"video.edit",
-		"video.extend",
-		"video.remix",
-		"video.status",
-		"video.download",
-		"video.list",
-		"video.delete",
-		"video.character.create",
-		"video.character.get",
-		"audio.generate",
-		"audio.transcribe",
-		"audio.translate",
-	]),
+	kind: z.enum(OPERATION_KINDS),
 	provider: z.string().default("openai"),
 	profile: z.string().optional(),
 	needs: z.array(z.string()).default([]),
@@ -53,16 +45,7 @@ const taskSchema = z.object({
 	variants: z.array(z.enum(["video", "thumbnail", "spritesheet"])).optional(),
 	pollIntervalMs: z.number().int().nonnegative().optional(),
 	timeoutMs: z.number().int().nonnegative().optional(),
-	inputs: z
-		.object({
-			images: z.array(inputRefSchema).optional(),
-			mask: inputRefSchema.optional(),
-			video: inputRefSchema.optional(),
-			videos: z.array(inputRefSchema).optional(),
-			inputReference: inputRefSchema.optional(),
-			audio: inputRefSchema.optional(),
-		})
-		.optional(),
+	inputs: z.record(z.string(), inputValueSchema).optional(),
 });
 
 const manifestSchema = z.object({
@@ -178,18 +161,17 @@ function validateManifest(manifest: Manifest): void {
 		}
 		if (
 			["audio.transcribe", "audio.translate"].includes(task.kind) &&
-			!task.inputs?.audio
+			!hasInputRole(task, "audio")
 		) {
 			throw new Error(`Task ${task.id} requires inputs.audio.`);
 		}
-		if (task.kind === "image.variation" && !task.inputs?.images?.length) {
+		if (task.kind === "image.variation" && !hasInputRole(task, "image")) {
 			throw new Error(`Task ${task.id} requires inputs.images.`);
 		}
 		if (
 			["video.edit", "video.extend"].includes(task.kind) &&
 			!task.videoId &&
-			!task.inputs?.video &&
-			!task.inputs?.videos?.length
+			!hasInputRole(task, "video")
 		) {
 			throw new Error(`Task ${task.id} requires videoId or inputs.video.`);
 		}
@@ -206,7 +188,7 @@ function validateManifest(manifest: Manifest): void {
 		}
 		if (task.kind === "video.character.create") {
 			if (!task.name) throw new Error(`Task ${task.id} requires name.`);
-			if (!task.inputs?.video && !task.inputs?.videos?.length) {
+			if (!hasInputRole(task, "video")) {
 				throw new Error(`Task ${task.id} requires inputs.video.`);
 			}
 		}
@@ -219,6 +201,15 @@ function validateManifest(manifest: Manifest): void {
 			}
 		}
 	}
+}
+
+function hasInputRole(task: ManifestTask, role: AssetInput["role"]): boolean {
+	for (const [key, value] of Object.entries(task.inputs ?? {})) {
+		if (inputRoleFromKey(key) !== role) continue;
+		const values = Array.isArray(value) ? value : [value];
+		if (values.length > 0) return true;
+	}
+	return false;
 }
 
 function requiresPrompt(kind: OperationKind): boolean {
@@ -263,28 +254,7 @@ async function executeTask(
 		sidecar: task.sidecar ?? options.sidecar,
 	};
 
-	if (task.kind === "image.generate") {
-		return provider.runImageGenerate(
-			{ ...base, kind: "image.generate" },
-			{ credential, verbose: options.verbose, sidecar: base.sidecar },
-		);
-	}
-
 	const inputs = resolveInputs(task, options);
-	if (task.kind === "image.variation") {
-		return provider.runImageVariation(
-			{ ...base, kind: "image.variation", inputs },
-			{ credential, verbose: options.verbose, sidecar: base.sidecar },
-		);
-	}
-
-	if (task.kind === "image.edit") {
-		return provider.runImageEdit(
-			{ ...base, kind: "image.edit", inputs },
-			{ credential, verbose: options.verbose, sidecar: base.sidecar },
-		);
-	}
-
 	const lifecycle = {
 		wait: task.wait,
 		download: task.download,
@@ -297,104 +267,104 @@ async function executeTask(
 		verbose: options.verbose,
 		sidecar: base.sidecar,
 	};
+	const job = buildTaskJob(task, base, inputs, lifecycle);
+	return provider.run(job, context);
+}
+
+function buildTaskJob(
+	task: ManifestTask,
+	base: BaseJob,
+	inputs: AssetInput[],
+	lifecycle: {
+		wait: boolean | undefined;
+		download: boolean | undefined;
+		variants: Array<"video" | "thumbnail" | "spritesheet"> | undefined;
+		pollIntervalMs: number | undefined;
+		timeoutMs: number | undefined;
+	},
+): AssetJob {
 	switch (task.kind) {
+		case "image.generate":
+			return { ...base, kind: "image.generate", prompt: base.prompt ?? "" };
+		case "image.variation":
+			return { ...base, kind: "image.variation", inputs };
+		case "image.edit":
+			return {
+				...base,
+				kind: "image.edit",
+				prompt: base.prompt ?? "",
+				inputs,
+			};
 		case "video.generate":
-			return provider.runVideoGenerate(
-				{ ...base, kind: "video.generate", inputs, ...lifecycle },
-				context,
-			);
+			return {
+				...base,
+				kind: "video.generate",
+				prompt: base.prompt ?? "",
+				inputs,
+				...lifecycle,
+			};
 		case "video.edit":
-			return provider.runVideoEdit(
-				{
-					...base,
-					kind: "video.edit",
-					inputs,
-					videoId: task.videoId,
-					...lifecycle,
-				},
-				context,
-			);
+			return {
+				...base,
+				kind: "video.edit",
+				prompt: base.prompt ?? "",
+				inputs,
+				videoId: task.videoId,
+				...lifecycle,
+			};
 		case "video.extend":
-			return provider.runVideoExtend(
-				{
-					...base,
-					kind: "video.extend",
-					inputs,
-					videoId: task.videoId,
-					...lifecycle,
-				},
-				context,
-			);
+			return {
+				...base,
+				kind: "video.extend",
+				prompt: base.prompt ?? "",
+				inputs,
+				videoId: task.videoId,
+				...lifecycle,
+			};
 		case "video.remix":
-			return provider.runVideoRemix(
-				{
-					...base,
-					kind: "video.remix",
-					videoId: task.videoId ?? "",
-					...lifecycle,
-				},
-				context,
-			);
+			return {
+				...base,
+				kind: "video.remix",
+				prompt: base.prompt ?? "",
+				videoId: task.videoId ?? "",
+				...lifecycle,
+			};
 		case "video.status":
-			return provider.runVideoStatus(
-				{ ...base, kind: "video.status", videoId: task.videoId ?? "" },
-				context,
-			);
+			return { ...base, kind: "video.status", videoId: task.videoId ?? "" };
 		case "video.download":
-			return provider.runVideoDownload(
-				{
-					...base,
-					kind: "video.download",
-					videoId: task.videoId ?? "",
-					variants: task.variants ?? ["video"],
-				},
-				context,
-			);
+			return {
+				...base,
+				kind: "video.download",
+				videoId: task.videoId ?? "",
+				variants: task.variants ?? ["video"],
+			};
 		case "video.list":
-			return provider.runVideoList({ ...base, kind: "video.list" }, context);
+			return { ...base, kind: "video.list" };
 		case "video.delete":
-			return provider.runVideoDelete(
-				{ ...base, kind: "video.delete", videoId: task.videoId ?? "" },
-				context,
-			);
+			return { ...base, kind: "video.delete", videoId: task.videoId ?? "" };
 		case "video.character.create":
-			return provider.runVideoCharacterCreate(
-				{
-					...base,
-					kind: "video.character.create",
-					name: task.name ?? "",
-					inputs,
-				},
-				context,
-			);
+			return {
+				...base,
+				kind: "video.character.create",
+				name: task.name ?? "",
+				inputs,
+			};
 		case "video.character.get":
-			return provider.runVideoCharacterGet(
-				{
-					...base,
-					kind: "video.character.get",
-					characterId: task.characterId ?? "",
-				},
-				context,
-			);
+			return {
+				...base,
+				kind: "video.character.get",
+				characterId: task.characterId ?? "",
+			};
 		case "audio.generate":
-			return provider.runAudioGenerate(
-				{
-					...base,
-					kind: "audio.generate",
-					input: task.text ?? task.prompt ?? "",
-				},
-				context,
-			);
+			return {
+				...base,
+				kind: "audio.generate",
+				input: task.text ?? task.prompt ?? "",
+			};
 		case "audio.transcribe":
-			return provider.runAudioTranscribe(
-				{ ...base, kind: "audio.transcribe", inputs },
-				context,
-			);
+			return { ...base, kind: "audio.transcribe", inputs };
 		case "audio.translate":
-			return provider.runAudioTranslate(
-				{ ...base, kind: "audio.translate", inputs },
-				context,
-			);
+			return { ...base, kind: "audio.translate", inputs };
 	}
 }
 
@@ -406,27 +376,31 @@ function resolveInputs(
 	},
 ): AssetInput[] {
 	const result: AssetInput[] = [];
-	for (const image of task.inputs?.images ?? []) {
-		result.push(resolveInputAsset("image", image, options));
-	}
-	if (task.inputs?.mask) {
-		result.push(resolveInputAsset("mask", task.inputs.mask, options));
-	}
-	if (task.inputs?.inputReference) {
-		result.push(
-			resolveInputAsset("reference", task.inputs.inputReference, options),
-		);
-	}
-	if (task.inputs?.video) {
-		result.push(resolveInputAsset("video", task.inputs.video, options));
-	}
-	for (const video of task.inputs?.videos ?? []) {
-		result.push(resolveInputAsset("video", video, options));
-	}
-	if (task.inputs?.audio) {
-		result.push(resolveInputAsset("audio", task.inputs.audio, options));
+	for (const [key, value] of Object.entries(task.inputs ?? {})) {
+		const role = inputRoleFromKey(key);
+		const values = Array.isArray(value) ? value : [value];
+		for (const ref of values) {
+			result.push(resolveInputAsset(role, ref, options));
+		}
 	}
 	return result;
+}
+
+function inputRoleFromKey(key: string): AssetInput["role"] {
+	const aliases: Record<string, AssetInput["role"]> = {
+		image: "image",
+		images: "image",
+		mask: "mask",
+		reference: "reference",
+		references: "reference",
+		inputReference: "reference",
+		style: "style",
+		styles: "style",
+		audio: "audio",
+		video: "video",
+		videos: "video",
+	};
+	return aliases[key] ?? key;
 }
 
 function resolveInputAsset(

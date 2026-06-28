@@ -7,7 +7,7 @@ import { getLearnOutput } from "./learn";
 import { runManifest } from "./manifest";
 import { formatResult, resolveFormat } from "./output";
 import { mergeObjects, parseJsonObject, parseParamAssignments } from "./params";
-import { getProvider } from "./providers/registry";
+import { findProvider, getProvider } from "./providers/registry";
 import { installSkill } from "./skill";
 import type {
 	AssetJob,
@@ -19,7 +19,6 @@ import type {
 	ImageVariationJob,
 	JobResult,
 	OutputOptions,
-	ProviderContext,
 	VideoCharacterCreateJob,
 	VideoCharacterGetJob,
 	VideoDeleteJob,
@@ -245,9 +244,11 @@ function addLoginCommand(parent: Command): void {
 		.option("--no-default", "Do not set this profile as default")
 		.action(
 			wrapAction(async (provider: string, opts: CliOptions) => {
-				if (provider !== "openai") {
+				const providerDefinition = findProvider(provider);
+				if (!providerDefinition?.auth) {
 					throw new CliError(`Unsupported provider for auth: ${provider}`, 2);
 				}
+				const authDescriptor = providerDefinition.auth;
 				const profile = opts.profile ?? "default";
 				const apiKey = await resolveLoginApiKey(provider, opts.apiKey);
 				const auth = new Auth();
@@ -256,9 +257,10 @@ function addLoginCommand(parent: Command): void {
 					profile,
 					{
 						apiKey,
-						organization: opts.organization ?? process.env.PLOOF_OPENAI_ORG,
-						project: opts.project ?? process.env.PLOOF_OPENAI_PROJECT,
-						baseURL: opts.baseUrl ?? process.env.PLOOF_OPENAI_BASE_URL,
+						organization:
+							opts.organization ?? envValue(authDescriptor.organizationEnvVar),
+						project: opts.project ?? envValue(authDescriptor.projectEnvVar),
+						baseURL: opts.baseUrl ?? envValue(authDescriptor.baseURLEnvVar),
 					},
 					opts.default ?? true,
 				);
@@ -357,15 +359,23 @@ async function resolveLoginApiKey(
 }
 
 function getAuthEnvApiKey(provider: string): string | undefined {
-	if (provider === "openai") {
-		return process.env.PLOOF_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
+	const auth = findProvider(provider)?.auth;
+	if (!auth) return undefined;
+	for (const name of auth.apiKeyEnvVars) {
+		const value = process.env[name]?.trim();
+		if (value) return value;
 	}
 	return undefined;
 }
 
 function authEnvHint(provider: string): string {
-	if (provider === "openai") return "PLOOF_OPENAI_API_KEY";
+	const auth = findProvider(provider)?.auth;
+	if (auth?.apiKeyEnvVars.length) return auth.apiKeyEnvVars.join(" or ");
 	return "the provider API key environment variable";
+}
+
+function envValue(name: string | undefined): string | undefined {
+	return name ? process.env[name] : undefined;
 }
 
 async function promptSecret(label: string): Promise<string | undefined> {
@@ -1260,7 +1270,7 @@ async function runAndPrint(job: AssetJob, opts: CliOptions): Promise<void> {
 	const credential = auth.getCredential(job.provider, job.profile);
 	if (!credential?.apiKey) {
 		throw new CliError(
-			`No credentials found for ${job.provider}. Run 'ploof login ${job.provider} --api-key <key>' or set PLOOF_OPENAI_API_KEY.`,
+			`No credentials found for ${job.provider}. Run 'ploof login ${job.provider} --api-key <key>' or set ${authEnvHint(job.provider)}.`,
 			1,
 		);
 	}
@@ -1271,50 +1281,9 @@ async function runAndPrint(job: AssetJob, opts: CliOptions): Promise<void> {
 		verbose: opts.verbose,
 		sidecar,
 	};
-	const result = await runProviderJob(provider, job, context);
+	const result = await provider.run(job, context);
 
 	printResults(result, opts);
-}
-
-async function runProviderJob(
-	provider: ReturnType<typeof getProvider>,
-	job: AssetJob,
-	context: ProviderContext,
-): Promise<JobResult> {
-	switch (job.kind) {
-		case "image.generate":
-			return provider.runImageGenerate(job, context);
-		case "image.edit":
-			return provider.runImageEdit(job, context);
-		case "image.variation":
-			return provider.runImageVariation(job, context);
-		case "video.generate":
-			return provider.runVideoGenerate(job, context);
-		case "video.edit":
-			return provider.runVideoEdit(job, context);
-		case "video.extend":
-			return provider.runVideoExtend(job, context);
-		case "video.remix":
-			return provider.runVideoRemix(job, context);
-		case "video.status":
-			return provider.runVideoStatus(job, context);
-		case "video.download":
-			return provider.runVideoDownload(job, context);
-		case "video.list":
-			return provider.runVideoList(job, context);
-		case "video.delete":
-			return provider.runVideoDelete(job, context);
-		case "video.character.create":
-			return provider.runVideoCharacterCreate(job, context);
-		case "video.character.get":
-			return provider.runVideoCharacterGet(job, context);
-		case "audio.generate":
-			return provider.runAudioGenerate(job, context);
-		case "audio.transcribe":
-			return provider.runAudioTranscribe(job, context);
-		case "audio.translate":
-			return provider.runAudioTranslate(job, context);
-	}
 }
 
 function printResults(result: JobResult | JobResult[], opts: CliOptions): void {
