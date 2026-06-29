@@ -1,6 +1,6 @@
 {
 	"name": "@miketromba/ploof",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"description": "AI asset generation CLI for OpenAI and fal.ai images, videos, audio, and multi-provider creative workflows.",
 	"type": "module",
 	"bin": {
