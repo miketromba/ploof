@@ -33,7 +33,7 @@ import type {
 	VideoStatusJob,
 } from "./types";
 
-const VERSION = "0.4.0";
+const VERSION = "0.4.1";
 
 type CliOptions = Record<string, unknown> & {
 	apiKey?: string;
