@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="packages/cli/assets/brand/ploof-banner.png" alt="Ploof — AI asset generation from the command line" width="100%" />
+  <img src="https://raw.githubusercontent.com/miketromba/ploof/main/packages/cli/assets/brand/ploof-banner.png" alt="Ploof — AI asset generation from the command line" width="100%" />
 </p>
 
 <p align="center">
